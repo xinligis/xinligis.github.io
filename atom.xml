@@ -5,7 +5,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://xinligis.github.io/"/>
-  <updated>2016-09-02T08:28:51.553Z</updated>
+  <updated>2016-09-05T06:35:16.117Z</updated>
   <id>http://xinligis.github.io/</id>
   
   <author>
@@ -16,52 +16,84 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
-    <title>我的第一篇博客</title>
-    <link href="http://xinligis.github.io/2016/09/02/%E6%88%91%E7%9A%84%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/"/>
-    <id>http://xinligis.github.io/2016/09/02/我的第一篇博客/</id>
-    <published>2016-09-02T04:52:04.000Z</published>
-    <updated>2016-09-02T08:28:51.553Z</updated>
+    <title>Portal for ArcGIS部署常见问题处理</title>
+    <link href="http://xinligis.github.io/2016/09/05/20160905-Portal10.4.x-%E9%83%A8%E7%BD%B2%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E5%A4%84%E7%90%86/"/>
+    <id>http://xinligis.github.io/2016/09/05/20160905-Portal10.4.x-部署常见问题处理/</id>
+    <published>2016-09-05T04:52:04.000Z</published>
+    <updated>2016-09-05T06:35:16.117Z</updated>
     
-    <content type="html"><![CDATA[<p>Maupassant最初是由Cho大神为Typecho平台设计开发的一套响应式模板，体积只有20KB，在各种尺寸的设备上表现出色。由于其简洁大气的风格受到许多用户喜爱，目前也已经被移植到了多个平台上，例如：</p>
-<p>Typecho：<a href="https://github.com/pagecho/maupassant/" target="_blank" rel="external">https://github.com/pagecho/maupassant/</a><br>Octopress：<a href="https://github.com/pagecho/mewpassant/" target="_blank" rel="external">https://github.com/pagecho/mewpassant/</a><br>Farbox：<a href="https://github.com/pagecho/Maupassant-farbox/" target="_blank" rel="external">https://github.com/pagecho/Maupassant-farbox/</a><br>Wordpress：<a href="https://github.com/iMuFeng/maupassant/" target="_blank" rel="external">https://github.com/iMuFeng/maupassant/</a><br>Ghost: <a href="https://github.com/LjxPrime/maupassant/" target="_blank" rel="external">https://github.com/LjxPrime/maupassant/</a><br>我在一年多以前使用Typecho博客程序的时候就用过这套主题（历史文章），后来更换至Hexo后不得不暂时放弃它，直到几个月前发现了由icylogic移植到Hexo的版本，喜出望外，立刻回归到Maupassant。</p>
-<p>不过由icylogic最初移植的版本只保留了主题最基本的模块，跟Cho自己发布的Farbox版类似，无法满足大部分爱折腾的Hexoer的需要。因此，在这半年的使用过程中，我将icylogic的源码fork过来，陆陆续续添加了一些想要的功能，目前能够实现的功能已经跟当初Typecho平台上的版本差不多了。</p>
-<p>我已经将修改后的代码发布在Github上，有兴趣的朋友可以下载试用，并欢迎反馈问题：</p>
+    <content type="html"><![CDATA[<h1 id="Portal-for-ArcGIS部署常见问题处理"><a href="#Portal-for-ArcGIS部署常见问题处理" class="headerlink" title="Portal for ArcGIS部署常见问题处理"></a>Portal for ArcGIS部署常见问题处理</h1><h2 id="1-局域网内机器访问Portal中的地图时，提示地图服务加载失败"><a href="#1-局域网内机器访问Portal中的地图时，提示地图服务加载失败" class="headerlink" title="1. 局域网内机器访问Portal中的地图时，提示地图服务加载失败"></a>1. 局域网内机器访问Portal中的地图时，提示地图服务加载失败</h2><p><strong>软件环境：</strong> Windows Server 2008、Portal 10.2.2</p>
+<p><strong>部署方案：</strong> 单机部署，Server–&gt;Portal–&gt;Web Adaptor</p>
+<ul>
+<li>Server使用机器名证书，使用机器名访问。</li>
+<li>Portal注册Server时，使用机器名访问地址。</li>
+<li>Portal以及其上的Web Adaptor使用相同的域名证书（域名在DNS中定义）。</li>
+</ul>
+<p><strong>问题描述：</strong></p>
+<p>（1）局域网内机器访问Portal中创建的Web Map，提示服务加载失败。</p>
+<p>（2）跟踪网络请求时，地图服务使用的是机器名访问地址。</p>
+<p>（3）查看Web Map详情时，该Web Map中加载的地图服务地址使用的机器名访问地址。</p>
+<p><strong>解决方法：</strong></p>
+<p>因为局域网内无法使用机器名访问地图服务导致该问题出现。现将部署方案调整为：Server–&gt;Web Adaptor–&gt;Portal–&gt;Web Adaptor。</p>
+<p>（1）由于是单机环境部署，Web Adaptor需要复制两份，一份用于接管Portal，一份用于接管Server，使用相同的域名访问。</p>
+<p>（2）Portal中重新注册Server，服务URL使用Web Adaptor接管的Server地址，管理URL仍然使用机器名地址。</p>
+<p>（3）重新注册的Server，需要先在admin网站中反联合移除原项目，再重新联合即可使用新地址添加Server中的服务。原有的Web Map需要重新创建。</p>
+<h2 id="2-Portal联合Server后，在ArcMap中发布服务到Server中时，提示服务发布失败"><a href="#2-Portal联合Server后，在ArcMap中发布服务到Server中时，提示服务发布失败" class="headerlink" title="2. Portal联合Server后，在ArcMap中发布服务到Server中时，提示服务发布失败"></a>2. Portal联合Server后，在ArcMap中发布服务到Server中时，提示服务发布失败</h2><h3 id="2-1-环境一"><a href="#2-1-环境一" class="headerlink" title="2.1. 环境一"></a>2.1. 环境一</h3><p><strong>软件环境：</strong> Windows Server 2008、Portal 10.2.2</p>
+<p><strong>部署方案：</strong> 单机部署，Server–&gt;Web Adaptor–&gt;Portal–&gt;Web Adaptor</p>
+<p>（1）由于是单机环境部署，Web Adaptor复制了两份，一份用于接管Portal，一份用于接管Server，使用相同的域名访问。</p>
+<p>（2）Portal和Web Adaptor使用相同的域名证书（域名在DNS中定义）。</p>
+<p>（3）Portal注册Server时，服务URL使用Web Adaptor接管的Server地址，管理URL仍然使用机器名地址。</p>
+<p><strong>解决方法：</strong></p>
+<p>（1）重启Server系统服务、Portal系统服务。</p>
+<p>（2）重新在Portal中注册联合服务器。</p>
+<h3 id="2-2-环境二"><a href="#2-2-环境二" class="headerlink" title="2.2. 环境二"></a>2.2. 环境二</h3><p><strong>软件环境：</strong> Windows 10、Portal 10.4.1</p>
+<p><strong>部署方案：</strong> 单机部署，Server–&gt;Web Adaptor–&gt;Portal–&gt;Web Adaptor</p>
+<p>（1）由于是单机环境部署，Web Adaptor复制了两份，分别命名为agsportal和agsserver，一份用于接管Portal，一份用于接管Server，使用相同的域名访问。</p>
+<p>（2）Portal和Web Adaptor使用相同的域名证书（域名在DNS中定义）。</p>
+<p><strong>问题描述：</strong></p>
+<p>（1）不联合时，在ArcMap中使用机器名添加Server地址（http协议）和使用接管的Server地址（https协议），都可以正常发布服务。</p>
+<p>（2）Portal联合Server时，服务URL使用接管的Server地址，管理URL使用机器名地址和使用Web Adaptor接管的server地址。结果一样报错，错误信息：</p>
+<p><code>The server is not ready for publishing.
+Please check if the Publishing Tools on the server(System/PublishingTools) are started。</code></p>
+<p>（3）重启Server和Portal系统服务，重新注册联合服务器，问题仍然存在。</p>
+<p>（4）联合后，匿名访问：<a href="https://机器名:6443/arcgis/rest/时，服务列表中无System文件夹。" target="_blank" rel="external">https://机器名:6443/arcgis/rest/时，服务列表中无System文件夹。</a></p>
+<p>（5）联合后，匿名走https访问web Adaptor接管后的server rest地址，服务列表无System文件夹。使用Portal账号登陆后可正常显示。</p>
+<p><strong>解决方法：</strong></p>
+<p>上述问题主要是联合后权限认证问题导致。<br>Portal联合Server后，在设置ArcMap连接Server时，不管是使用机器名的Server访问地址还是Web Adaptor接管后的Server访问地址，需要使用http协议，如：<a href="http://hostname:6080/arcgis或者http://webadaptor.domain.com/arcgis。" target="_blank" rel="external">http://hostname:6080/arcgis或者http://webadaptor.domain.com/arcgis。</a><br>注意：在Portal未联合Server前，不管是http还是https的地址都是可正常发布服务的。</p>
+<h2 id="3-Web-Adaptor中配置Server和Portal时，提示需要在托管Web-Adaptor的机器上配置"><a href="#3-Web-Adaptor中配置Server和Portal时，提示需要在托管Web-Adaptor的机器上配置" class="headerlink" title="3. Web Adaptor中配置Server和Portal时，提示需要在托管Web Adaptor的机器上配置"></a>3. Web Adaptor中配置Server和Portal时，提示需要在托管Web Adaptor的机器上配置</h2><p><strong>软件环境：</strong> Windows Server 2008、Portal 10.3.1</p>
+<p><strong>部署方案：</strong> 单机部署，Server–&gt;Web Adaptor–&gt;Portal–&gt;Web Adaptor</p>
+<p>（1）Server使用默认自签名证书。</p>
+<p>（2）Web Adaptor复制了两份，agsserver用于接管Server，arcgis用于接管Portal。全部使用<a href="https://FQDN访问。" target="_blank" rel="external">https://FQDN访问。</a></p>
+<p>（3）hosts文件中模拟域名。</p>
+<p><strong>问题描述：</strong></p>
+<p>（1）使用<a href="https://localhost访问webadaptor正常。" target="_blank" rel="external">https://localhost访问webadaptor正常。</a></p>
+<p>（2）使用<a href="https://FQDN访问webadaptor，提示需要在托管Web" target="_blank" rel="external">https://FQDN访问webadaptor，提示需要在托管Web</a> Adaptor的机器上配置。</p>
+<p><strong>解决方法：</strong></p>
+<p>原Web Adaptor部署在tomcat中，使用版本是tomcat8.*+JDK1.8，将JDK更改为1.7版本后正常。<br>    建议使用系统环境要求的软件版本。</p>
+<h2 id="4-Portal中注册Server联合服务器时，提示注册失败"><a href="#4-Portal中注册Server联合服务器时，提示注册失败" class="headerlink" title="4. Portal中注册Server联合服务器时，提示注册失败"></a>4. Portal中注册Server联合服务器时，提示注册失败</h2><p><strong>软件环境：</strong> Windows Server 2008（Server机器）、Windows Server 2012（Portal机器）、Portal 10.3.1</p>
+<p><strong>部署方案：</strong> Server机器：Server，Portal机器：Portal–&gt;Web Adaptor（同时接管Server和Portal）</p>
+<p>（1）Server的机器名含中横线。</p>
+<p>（2）Server使用默认自签名证书。</p>
+<p>（3）Web Adaptor复制了两份，agsserver用于接管Server，arcgis用于接管Portal。全部使用<a href="https://FQDN访问。" target="_blank" rel="external">https://FQDN访问。</a></p>
+<p>（4）hosts文件中模拟域名。</p>
+<p><strong>问题描述：</strong></p>
+<p>（1）Portal注册Server时，服务URL使用Web Adaptor接管的Server地址，管理URL使用机器名地址。提示联合失败。<br>（2）Portal注册Server时，服务URL和管理URL都使用Web Adaptor接管的Server地址。提示联合失败。<br>（3）重启Server、Portal系统服务，问题仍然存在。<br>（4）页面报dojo错误：</p>
+<figure class="highlight stylus"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">y	@	dojo<span class="selector-class">.js</span>:<span class="number">198</span></div><div class="line">(anonymous function)	@	dojo<span class="selector-class">.js</span>:<span class="number">197</span></div><div class="line">c	@	dojo<span class="selector-class">.js</span>:<span class="number">83</span></div><div class="line">d	@	dojo<span class="selector-class">.js</span>:<span class="number">83</span></div><div class="line">resolve<span class="selector-class">.callback</span>	@	dojo<span class="selector-class">.js</span>:<span class="number">84</span></div><div class="line">c	@	dojo<span class="selector-class">.js</span>:<span class="number">83</span></div><div class="line">d	@	dojo<span class="selector-class">.js</span>:<span class="number">83</span></div><div class="line">resolve<span class="selector-class">.callback</span>	@	dojo<span class="selector-class">.js</span>:<span class="number">84</span></div><div class="line">c	@	dojo<span class="selector-class">.js</span>:<span class="number">83</span></div><div class="line">d	@	dojo<span class="selector-class">.js</span>:<span class="number">83</span></div><div class="line">resolve<span class="selector-class">.callback</span>	@	dojo<span class="selector-class">.js</span>:<span class="number">84</span></div><div class="line">c	@	dojo<span class="selector-class">.js</span>:<span class="number">83</span></div><div class="line">d	@	dojo<span class="selector-class">.js</span>:<span class="number">83</span></div><div class="line">resolve<span class="selector-class">.callback</span>	@	dojo<span class="selector-class">.js</span>:<span class="number">84</span></div><div class="line">(anonymous function)	@	dojo<span class="selector-class">.js</span>:<span class="number">201</span></div><div class="line">k	@	dojo<span class="selector-class">.js</span>:<span class="number">205</span></div><div class="line">m	@	dojo<span class="selector-class">.js</span>:<span class="number">205</span></div><div class="line">resolve	@	dojo<span class="selector-class">.js</span>:<span class="number">207</span></div><div class="line"><span class="selector-tag">a</span>	@	dojo<span class="selector-class">.js</span>:<span class="number">206</span></div><div class="line">k	@	dojo<span class="selector-class">.js</span>:<span class="number">206</span></div><div class="line">m	@	dojo<span class="selector-class">.js</span>:<span class="number">205</span></div><div class="line">resolve	@	dojo<span class="selector-class">.js</span>:<span class="number">207</span></div><div class="line"><span class="selector-tag">a</span>	@	dojo<span class="selector-class">.js</span>:<span class="number">206</span></div><div class="line">k	@	dojo<span class="selector-class">.js</span>:<span class="number">206</span></div><div class="line">m	@	dojo<span class="selector-class">.js</span>:<span class="number">205</span></div><div class="line">resolve	@	dojo<span class="selector-class">.js</span>:<span class="number">207</span></div><div class="line"><span class="selector-tag">a</span>	@	dojo<span class="selector-class">.js</span>:<span class="number">206</span></div><div class="line">k	@	dojo<span class="selector-class">.js</span>:<span class="number">206</span></div><div class="line">m	@	dojo<span class="selector-class">.js</span>:<span class="number">205</span></div><div class="line">resolve	@	dojo<span class="selector-class">.js</span>:<span class="number">207</span></div><div class="line"><span class="selector-tag">q</span>	@	dojo<span class="selector-class">.js</span>:<span class="number">166</span></div><div class="line">f</div></pre></td></tr></table></figure>
+<p><strong>解决方法：</strong><br>原Web Adaptor部署在tomcat中，使用版本是<strong>tomcat8.X+JDK1.7</strong>，将版本更改为<strong>tomcat7.X+JDK1.7</strong>。</p>
+<p>（1）在Server机器的hosts中定义域名映射。</p>
+<p>（2）在Server机器上重装Server自签名证书和Portal的域名证书。</p>
+<p>（3）在Portal机器的hosts中定义Server机器名映射。</p>
+<p>（4）在Portal机器上重装Server自签名证书和Portal的域名证书。</p>
+<p>建议使用系统环境要求的软件版本。</p>
 ]]></content>
     
     <summary type="html">
     
-      这是文章摘要内容，这是文章摘要内容，这是文章摘要内容，这是文章摘要内容，这是文章摘要内容。
+      &lt;h1 id=&quot;Portal-for-ArcGIS部署常见问题处理&quot;&gt;&lt;a href=&quot;#Portal-for-ArcGIS部署常见问题处理&quot; class=&quot;headerlink&quot; title=&quot;Portal for ArcGIS部署常见问题处理&quot;&gt;&lt;/a&gt;Portal for 
     
     </summary>
     
-      <category term="个人文章" scheme="http://xinligis.github.io/categories/%E4%B8%AA%E4%BA%BA%E6%96%87%E7%AB%A0/"/>
-    
-    
-  </entry>
-  
-  <entry>
-    <title>Hello World</title>
-    <link href="http://xinligis.github.io/2016/09/02/hello-world/"/>
-    <id>http://xinligis.github.io/2016/09/02/hello-world/</id>
-    <published>2016-09-02T02:51:48.737Z</published>
-    <updated>2016-09-02T02:51:48.737Z</updated>
-    
-    <content type="html"><![CDATA[<p>Welcome to <a href="https://hexo.io/" target="_blank" rel="external">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="external">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="external">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="external">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo new <span class="string">"My New Post"</span></div></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="external">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo server</div></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="external">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo generate</div></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="external">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ hexo deploy</div></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/deployment.html" target="_blank" rel="external">Deployment</a></p>
-]]></content>
-    
-    <summary type="html">
-    
-      &lt;p&gt;Welcome to &lt;a href=&quot;https://hexo.io/&quot; target=&quot;_blank&quot; rel=&quot;external&quot;&gt;Hexo&lt;/a&gt;! This is your very first post. Check &lt;a href=&quot;https://hexo.
-    
-    </summary>
+      <category term="地理平台" scheme="http://xinligis.github.io/categories/%E5%9C%B0%E7%90%86%E5%B9%B3%E5%8F%B0/"/>
     
     
   </entry>
