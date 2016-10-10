@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>辛立</title>
-  <subtitle>精心耐心专心</subtitle>
+  <subtitle>静心耐心专心</subtitle>
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://xinligis.github.io/"/>
-  <updated>2016-09-05T06:35:16.117Z</updated>
+  <updated>2016-10-10T08:18:29.332Z</updated>
   <id>http://xinligis.github.io/</id>
   
   <author>
@@ -16,13 +16,598 @@
   <generator uri="http://hexo.io/">Hexo</generator>
   
   <entry>
+    <title>ArcGIS自动化部署实践之四：基于PowerShell的AGS Server自动部署1</title>
+    <link href="http://xinligis.github.io/2016/10/09/20161009-AGS10.4.x-ArcGIS%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2%E5%AE%9E%E8%B7%B5%E4%B9%8B%E5%9B%9B%EF%BC%9A%E5%9F%BA%E4%BA%8Epowershell%E7%9A%84AGS%20Server%E8%87%AA%E5%8A%A8%E9%83%A8%E7%BD%B21/"/>
+    <id>http://xinligis.github.io/2016/10/09/20161009-AGS10.4.x-ArcGIS自动化部署实践之四：基于powershell的AGS Server自动部署1/</id>
+    <published>2016-10-08T16:00:00.000Z</published>
+    <updated>2016-10-10T08:18:29.332Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="1-自动化部署思路"><a href="#1-自动化部署思路" class="headerlink" title="1.自动化部署思路"></a>1.自动化部署思路</h2><p>单机环境下部署ArcGIS Server主要分为三步：操作系统环境设置、安装和授权ArcGIS Server、创建站点。各步骤中包含的内容如下：</p>
+<ol>
+<li>系统环境准备</li>
+</ol>
+<p>包括防火墙设置，.Net环境设置。</p>
+<ol>
+<li>AGS Server安装</li>
+</ol>
+<p>包括软件安装、授权，以及重启服务。</p>
+<ol>
+<li>site站点创建</li>
+</ol>
+<p>调用REST Admin API创建站点。</p>
+<h2 id="2-系统环境准备"><a href="#2-系统环境准备" class="headerlink" title="2.系统环境准备"></a>2.系统环境准备</h2><ol>
+<li>检验与安装.NET Framework 4.5.1</li>
+</ol>
+<p>ArcGIS Server 10.4.X版本需要NET Framework 4.5环境。在安装前需要检查是否已安装该版本的NET Framework，如果没有则需要先安装。Windows Server 2012系统中默认会安装4.5版本的NET Framework，Windows Server 2008上需要手动安装。为了安装方便，可在微软官网上下载离线安装包来安装。</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># 检查操作系统中是否安装了.NET Framework 4.5</span></div><div class="line"><span class="variable">$netVersion</span> = <span class="built_in">Get-ItemProperty</span> <span class="string">'HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Client'</span> -Name Version</div><div class="line"></div><div class="line"><span class="variable">$netIdx</span> = <span class="variable">$netVersion</span>.Version.LastIndexOf(<span class="string">"."</span>)</div><div class="line"><span class="variable">$netVersionValue</span> = [Double](<span class="variable">$netVersion</span>.Version.Substring(<span class="number">0</span>,<span class="variable">$netIdx</span>))</div><div class="line"></div><div class="line"><span class="comment"># 版本号不等于4.5时需要新安装</span></div><div class="line"><span class="keyword">if</span>(<span class="variable">$netVersionValue</span> <span class="nomarkup">-ne</span> <span class="number">4.5</span>)&#123;</div><div class="line">    <span class="comment"># Install-WindowsFeature NET-Framework-Core –Source D:\Sources\sxs</span></div><div class="line"></div><div class="line">    <span class="built_in">Start-Process</span> -FilePath <span class="variable">$BinPath</span> -ArgumentList <span class="string">"/q /norestart"</span> -Wait -NoNewWindow</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<ol>
+<li>关闭操作系统防火墙</li>
+</ol>
+<p><strong>方法一：根据防火墙开启状态，将开启的防火墙关闭</strong></p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># 检查防火墙状态。如果防火墙已打开则关闭。</span></div><div class="line"><span class="comment"># 只支持Windows Server 2012和Windows 8及以上版本，其他旧版本需要使用NETSH命令</span></div><div class="line"></div><div class="line"><span class="comment"># 写日志信息</span></div><div class="line"><span class="keyword">function</span> Log-Message([string]<span class="variable">$Msg</span>,[switch]<span class="variable">$PassThru</span>) </div><div class="line">&#123;</div><div class="line">  <span class="string">"[&#123;0&#125;] <span class="variable">$Msg</span>"</span> -f (<span class="built_in">Get-Date</span> -Format <span class="string">"yyyy-dd-MM HH:mm:ss.fffff"</span>) | <span class="built_in">Add-Content</span> <span class="variable">$logFile</span> -Force -ea SilentlyContinue</div><div class="line">  <span class="keyword">if</span> (<span class="variable">$PassThru</span>) &#123;</div><div class="line">    <span class="built_in">Write-Output</span> <span class="variable">$Msg</span></div><div class="line">  &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">#########################################################################</span></div><div class="line"><span class="comment">## 启动脚本</span></div><div class="line"><span class="comment">#########################################################################</span></div><div class="line"><span class="keyword">try</span>&#123;</div><div class="line">    <span class="variable">$logFile</span>=<span class="string">"c:\agsserver-install.log"</span></div><div class="line"></div><div class="line">    Log-Message <span class="string">"开始检查防火墙状态......"</span> -PassThru</div><div class="line"></div><div class="line">    <span class="variable">$firewallStatus</span> = Get-NetFirewallProfile | <span class="built_in">Select-Object</span> -Property Name,Enabled</div><div class="line">    <span class="keyword">foreach</span> (<span class="variable">$n</span> <span class="keyword">in</span> <span class="variable">$firewallStatus</span>)</div><div class="line">    &#123; </div><div class="line">        Log-Message <span class="string">"信息：当前各个网络环境下的防火设置情况如下："</span></div><div class="line">        Log-Message <span class="string">"信息：网络名：$(<span class="variable">$n</span>.Name)，防火墙状态：$(<span class="variable">$n</span>.Enabled)"</span></div><div class="line">        <span class="keyword">if</span>(<span class="variable">$n</span>.Enabled <span class="nomarkup">-eq</span> <span class="string">"True"</span>)</div><div class="line">        &#123; </div><div class="line">            Log-Message <span class="string">"信息：将关闭该网络'$(<span class="variable">$n</span>.Name)'的防火墙设置"</span></div><div class="line">            Set-NetFirewallProfile -Profile <span class="variable">$n</span>.Name -Enabled False</div><div class="line">        &#125;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    Log-Message <span class="string">"防火墙状态设置完成......"</span> -PassThru</div><div class="line">&#125;</div><div class="line"><span class="keyword">catch</span></div><div class="line">&#123;</div><div class="line">    Log-Message <span class="string">"错误：$(<span class="variable">$_</span>.Exception.Message)"</span> -PassThru</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p><strong>方法二：简化版本，不管当前防火墙的状态，都直接设置关闭</strong></p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># 防火墙设置命令在Windows Server 2012和Windows 8之前有所不同，新操作系统使用Set-NetFirewallProfile命令，老版本使用netsh命令。</span></div><div class="line"></div><div class="line"><span class="comment"># 根据操作系统版本信息，选择使用不同的命令</span></div><div class="line"><span class="variable">$osVersion</span> = <span class="built_in">Get-WmiObject</span> -Class Win32_OperatingSystem -ComputerName . | <span class="built_in">Select-Object</span> -Property Caption,Version</div><div class="line"></div><div class="line"><span class="variable">$idx</span> = <span class="variable">$osVersion</span>.Version.LastIndexOf(<span class="string">"."</span>)</div><div class="line"><span class="variable">$osVersionValue</span> = [Double](<span class="variable">$osVersion</span>.Version.Substring(<span class="number">0</span>,<span class="variable">$idx</span>))</div><div class="line"></div><div class="line"><span class="comment"># 判断是否server系统</span></div><div class="line"><span class="keyword">if</span>(<span class="variable">$osVersion</span>.Caption.Contains(<span class="string">"Windows Server"</span>))&#123;</div><div class="line">    <span class="keyword">if</span>(<span class="variable">$osVersionValue</span> <span class="nomarkup">-lt</span> <span class="number">6.3</span>)&#123; </div><div class="line">        netsh advfirewall set allprofiles state off</div><div class="line">    &#125;<span class="keyword">else</span>&#123;</div><div class="line">        Set-NetFirewallProfile -Enabled False</div><div class="line">    &#125;</div><div class="line">&#125;<span class="keyword">else</span>&#123;</div><div class="line">    <span class="keyword">if</span>(<span class="variable">$osVersionValue</span> <span class="nomarkup">-lt</span> <span class="number">8.0</span>)&#123;</div><div class="line">        netsh advfirewall set allprofiles state off</div><div class="line">    &#125;<span class="keyword">else</span>&#123;</div><div class="line">        Set-NetFirewallProfile -Enabled False</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<ol>
+<li>强密码策略</li>
+</ol>
+<p>建议按强密码策略设置密码。</p>
+<h2 id="2-AGS-Server安装"><a href="#2-AGS-Server安装" class="headerlink" title="2.AGS Server安装"></a>2.AGS Server安装</h2><p>在ArcGIS Server的光盘中包含了Windows版本Server的安装exe程序，该程序其实是一个压缩文件，需要先安装该exe程序，将ArcGIS Server正式的安装程序提取出来。ArcGIS Server支持静默安装，静默安装参数如下：</p>
+<table>
+<thead>
+<tr>
+<th>参数名</th>
+<th style="text-align:right">参数说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>INSTALLDIR</td>
+<td style="text-align:right">ArcGIS Server安装路径</td>
+</tr>
+<tr>
+<td>INSTALLDIR1</td>
+<td style="text-align:right">Python的安装路径</td>
+<td>、</td>
+</tr>
+<tr>
+<td>USER_NAME</td>
+<td style="text-align:right">安装ArcGIS Server的操作系统账号</td>
+</tr>
+<tr>
+<td>PASSWORD</td>
+<td style="text-align:right">安装的操作系统账号密码</td>
+</tr>
+</tbody>
+</table>
+<p>静默安装示例：<br><code>AGSServer\setup.exe /qb INSTALLDIR=C:\NewServerDir INSTALLDIR1=C:\NewPythonDir USER_NAME=myaccount PASSWORD=my.password</code></p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># 脚本所用参数列表</span></div><div class="line"><span class="variable">$agsSoftwarePath</span>=<span class="string">"C:\agssoft"</span></div><div class="line"><span class="variable">$agsServerPath</span>= <span class="built_in">Join-Path</span> <span class="variable">$agsSoftwarePath</span> <span class="string">"ArcGISServer1041\Setup.exe"</span></div><div class="line"></div><div class="line"><span class="comment">#AGS SERVER安装参数</span></div><div class="line"><span class="variable">$INSTALLDIR</span>=<span class="string">"C:\arcgis"</span></div><div class="line"><span class="variable">$INSTALLDIR1</span>=<span class="variable">$INSTALLDIR</span></div><div class="line"></div><div class="line"><span class="variable">$USER_NAME</span>=<span class="string">"arcgis"</span></div><div class="line"><span class="variable">$PASSWORD</span>=<span class="string">"ArcGIS1041"</span></div><div class="line"></div><div class="line"><span class="comment"># 1.安装ArcGIS Server</span></div><div class="line">Log-Message <span class="string">"开始安装ArcGIS Server......"</span> -PassThru</div><div class="line">Log-Message <span class="string">"信息：ArcGIS Server安装路径：<span class="variable">$INSTALLDIR</span>"</span> -PassThru</div><div class="line">Log-Message <span class="string">"信息：ArcGIS Server安装账号：<span class="variable">$USER_NAME</span> / <span class="variable">$PASSWORD</span>"</span> -PassThru</div><div class="line">    </div><div class="line"><span class="variable">$serverParams</span> = <span class="string">"/qb INSTALLDIR=<span class="variable">$INSTALLDIR</span> INSTALLDIR1=<span class="variable">$INSTALLDIR1</span> USER_NAME=<span class="variable">$USER_NAME</span> PASSWORD=<span class="variable">$PASSWORD</span>"</span></div><div class="line"><span class="built_in">Start-Process</span> -FilePath <span class="variable">$agsServerPath</span> -ArgumentList <span class="variable">$serverParams</span> -Wait -NoNewWindow</div><div class="line"></div><div class="line">Log-Message <span class="string">"ArcGIS Server安装完成......"</span> -PassThru</div></pre></td></tr></table></figure>
+<h2 id="3-AGS-Server授权"><a href="#3-AGS-Server授权" class="headerlink" title="3.AGS Server授权"></a>3.AGS Server授权</h2><p>静默授权示例：<br><code>&lt;系统磁盘驱动器&gt;\Program files\Common files\ArcGIS\bin\SoftwareAuthorization.exe /S /Ver 10.3 /LIF &lt;.prvc授权文件的路径&gt;authorizationfile.prvc</code><br><figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># 脚本所用参数列表</span></div><div class="line"><span class="variable">$agsSoftwarePath</span>=<span class="string">"C:\agssoft"</span></div><div class="line"><span class="variable">$agsServerKey</span>= <span class="built_in">Join-Path</span> <span class="variable">$agsSoftwarePath</span> <span class="string">"server.ecp"</span></div><div class="line"></div><div class="line"><span class="comment"># 2.授权ArcGIS Server</span></div><div class="line">    Log-Message <span class="string">"开始授权ArcGIS Server......"</span> -PassThru</div><div class="line">    </div><div class="line">    <span class="variable">$authEXEPath</span>=<span class="built_in">Join-Path</span> <span class="variable">$env:CommonProgramFiles</span> <span class="string">"ArcGIS\bin\SoftwareAuthorization.exe"</span></div><div class="line">    <span class="variable">$authParams</span>=<span class="string">"/s /Ver 10.4 /LIF "</span> + <span class="variable">$agsServerKey</span></div><div class="line">    <span class="built_in">Start-Process</span> -FilePath <span class="variable">$authEXEPath</span> -ArgumentList <span class="variable">$authParams</span> -Wait -NoNewWindow</div><div class="line"></div><div class="line">    Log-Message <span class="string">"ArcGIS Server授权完成......"</span> -PassThru</div><div class="line"></div><div class="line">    <span class="comment"># 3.重启ArcGIS Server服务</span></div><div class="line">    Log-Message <span class="string">"开始重启ArcGIS Server服务......"</span> -PassThru</div><div class="line"></div><div class="line">    <span class="variable">$agsServiceName</span>=<span class="string">"ArcGIS Server"</span></div><div class="line">    <span class="variable">$agsServiceStatus</span> = (<span class="built_in">Get-Service</span> <span class="variable">$agsServiceName</span>).Status</div><div class="line"></div><div class="line">    Log-Message <span class="string">"信息：当前ArcGIS Server服务启动状态：<span class="variable">$agsServiceStatus</span>"</span></div><div class="line"></div><div class="line">    <span class="keyword">if</span>(<span class="variable">$agsServiceStatus</span> <span class="nomarkup">-eq</span> <span class="string">"Running"</span>)&#123;</div><div class="line">        <span class="built_in">Restart-Service</span> -Name <span class="variable">$agsServiceName</span></div><div class="line">    &#125;<span class="keyword">else</span>&#123;</div><div class="line">        <span class="built_in">Start-Service</span> -Name <span class="variable">$agsServiceName</span></div><div class="line">    &#125;</div><div class="line"></div><div class="line">    Log-Message <span class="string">"信息：系统休眠60秒，等待ArcGIS Server系统服务启动完成"</span></div><div class="line"></div><div class="line">    <span class="built_in">Start-Sleep</span> -Seconds <span class="number">60</span></div><div class="line"></div><div class="line">    Log-Message <span class="string">"ArcGIS Server服务重启完成......"</span> -PassThru</div></pre></td></tr></table></figure></p>
+<h2 id="4-创建site站点"><a href="#4-创建site站点" class="headerlink" title="4.创建site站点"></a>4.创建site站点</h2><p>站点的创建需要使用ArcGIS REST Admin API，调用CreateSite接口，详细的接口说明见<a href="http://resources.arcgis.com/en/help/arcgis-rest-api/#/Create_Site/02r3000001zs000000/" target="_blank" rel="external">在线帮助</a>。</p>
+<ol>
+<li>使用HTTPS访问时的证书安全警告</li>
+</ol>
+<p>ArcGIS Server 10.4.X默认开启了HTTPS，使用的是自签名证书。当使用HTTPS访问Admin网站时，会提示证书安全警告。在powershell中发送HTTPS请求时，可以提供证书信息，也可以忽略证书安全警告，但需要做额外设置。</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">[System.Net.ServicePointManager]::ServerCertificateValidationCallback = &#123; <span class="literal">$True</span> &#125;</div></pre></td></tr></table></figure>
+<ol>
+<li>调用Admin API创建站点</li>
+</ol>
+<p>创建站点需要传入站点管理员信息、配置存储路径、服务目录路径、日志路径等参数，这些参数可以定义在变量中。</p>
+<p>示例中测试了两种发送web请求的方法：第一种使用.NET对象；第二种使用powershell封装好的Invoke-RestMethod方法。</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">function</span> Create-AGSSite()</div><div class="line">&#123;</div><div class="line">    Log-Message <span class="string">"开始创建ArcGIS Server站点......"</span> -PassThru</div><div class="line"></div><div class="line">    Log-Message <span class="string">"信息：设置站点参数信息"</span></div><div class="line">    Log-Message <span class="string">"信息：ArcGIS Server站点的配置存储路径：<span class="variable">$agsConfigStorePath</span>"</span> -PassThru</div><div class="line">    Log-Message <span class="string">"信息：ArcGIS Server站点的服务目录路径：<span class="variable">$agsServiceDirPath</span>"</span> -PassThru</div><div class="line"></div><div class="line">    <span class="comment"># 10.5之前使用下面的localRepositoryPath参数</span></div><div class="line">    <span class="variable">$localRepositoryPath</span>=<span class="variable">$agsServiceDirPath</span> + <span class="string">"\\local"</span></div><div class="line">    <span class="comment"># 10.5中的localRepositoryPath定义在这里</span></div><div class="line">    <span class="variable">$configStoreConnection</span> = <span class="string">@"</span></div><div class="line">    &#123;</div><div class="line">        "type":"FILESYSTEM",</div><div class="line">        "connectionString": "<span class="variable">$agsConfigStorePath</span>",</div><div class="line">        "localRepositoryPath": "<span class="variable">$localRepositoryPath</span>"   </div><div class="line">    &#125;</div><div class="line">"@</div><div class="line"></div><div class="line">    <span class="variable">$directories</span>=<span class="string">@"</span></div><div class="line">    &#123;</div><div class="line">        "directories": [</div><div class="line">			  &#123;</div><div class="line">			    "name": "arcgiscache",</div><div class="line">			    "physicalPath": "<span class="variable">$agsServiceDirPath</span>\\directories\\arcgiscache",</div><div class="line">			    "directoryType": "CACHE",</div><div class="line">			    "cleanupMode": "NONE",</div><div class="line">			    "maxFileAge": 0,</div><div class="line">			    "description": "Stores tile caches used by map, globe, and image services for rapid performance."</div><div class="line">			  &#125;,</div><div class="line">			  &#123;</div><div class="line">			    "name": "arcgisjobs",</div><div class="line">			    "physicalPath": "<span class="variable">$agsServiceDirPath</span>\\directories\\arcgisjobs",</div><div class="line">			    "directoryType": "JOBS",</div><div class="line">			    "cleanupMode": "TIME_ELAPSED_SINCE_LAST_MODIFIED",</div><div class="line">			    "maxFileAge": 360,</div><div class="line">			    "description": "Stores results and other information from geoprocessing services."</div><div class="line">			  &#125;,</div><div class="line">			  &#123;</div><div class="line">			    "name": "arcgisoutput",</div><div class="line">			    "physicalPath": "<span class="variable">$agsServiceDirPath</span>\\directories\\arcgisoutput",</div><div class="line">			    "directoryType": "OUTPUT",</div><div class="line">			    "cleanupMode": "TIME_ELAPSED_SINCE_LAST_MODIFIED",</div><div class="line">			    "maxFileAge": 10,</div><div class="line">			    "description": "Stores various information generated by services, such as map images."</div><div class="line">			  &#125;,</div><div class="line">			  &#123;</div><div class="line">			    "name": "arcgissystem",</div><div class="line">			    "physicalPath": "<span class="variable">$agsServiceDirPath</span>\\arcgissystem",</div><div class="line">			    "directoryType": "SYSTEM",</div><div class="line">			    "cleanupMode": "NONE",</div><div class="line">			    "maxFileAge": 0,</div><div class="line">			    "description": "Stores directories and files used internally by ArcGIS Server."</div><div class="line">			  &#125;			 </div><div class="line">		]</div><div class="line">    &#125;</div><div class="line">"@</div><div class="line"></div><div class="line">    <span class="variable">$logsSettings</span>=<span class="string">@"</span></div><div class="line">    &#123;</div><div class="line">  		"logLevel": "INFO",</div><div class="line">  		"logDir": "<span class="variable">$agsServiceDirPath</span>\\logs\\",</div><div class="line">  		"maxErrorReportsCount": 10,</div><div class="line">  		"maxLogFileAge": 90</div><div class="line">	&#125;</div><div class="line">"@</div><div class="line"></div><div class="line">    Log-Message <span class="string">"信息：站点参数设置完成"</span> -PassThru</div><div class="line">    Log-Message <span class="string">"信息：参数configStoreConnection：<span class="variable">$configStoreConnection</span>"</span> </div><div class="line">    Log-Message <span class="string">"信息：参数directories：<span class="variable">$directories</span>"</span> </div><div class="line">    Log-Message <span class="string">"信息：参数logsSettings：<span class="variable">$logsSettings</span>"</span> </div><div class="line"></div><div class="line">    <span class="comment"># 使用https访问时，忽略所有证书安全警告</span></div><div class="line">    Ignore-SelfSignedCerts</div><div class="line"></div><div class="line">    <span class="variable">$adminURL</span> = <span class="string">"https://"</span>+<span class="variable">$env:COMPUTERNAME</span>+<span class="string">":6443/arcgis/admin/createNewSite"</span></div><div class="line"></div><div class="line">    Log-Message <span class="string">"信息：站点Admin网站访问网址：<span class="variable">$adminURL</span>"</span> -PassThru</div><div class="line">    Log-Message <span class="string">"信息：开始发送创建站点请求"</span>  -PassThru</div><div class="line"></div><div class="line"><span class="comment">&lt;#    # 方法1：使用Net对象发送Web请求</span></div><div class="line">    # 构造HTTP请求</div><div class="line">    $http_request = New-Object -ComObject Msxml2.XMLHTTP</div><div class="line">    $http_request.open('POST', $adminURL, $false)</div><div class="line">    $http_request.setRequestHeader("Content-type", "application/x-www-form-urlencoded")</div><div class="line"></div><div class="line">    $params = "username=$SITEADMIN&amp;password=$SITEPWD&amp;configStoreConnection=$configStoreConnection&amp;directories=$directories&amp;logsSettings=$logsSettings&amp;runAsync=false&amp;f=json"</div><div class="line">    $http_request.send($params)</div><div class="line"></div><div class="line">    Log-Message "信息：创建站点请求执行完成。"  -PassThru</div><div class="line">    Log-Message "信息：创建站点请求执行完成返回信息：status:$($http_request.status),content:$($http_request.responseText)"</div><div class="line"></div><div class="line">    $responseJson = ConvertFrom-StringData $http_request.responseText</div><div class="line">    # END方法1</div><div class="line">#&gt;</div><div class="line"></div><div class="line">    <span class="comment"># 方法2：使用内建方法发送Web请求</span></div><div class="line">    <span class="variable">$body</span> = @&#123;</div><div class="line">        username=<span class="variable">$SITEADMIN</span>;</div><div class="line">        password=<span class="variable">$SITEPWD</span>;</div><div class="line">        configStoreConnection=<span class="variable">$configStoreConnection</span>;</div><div class="line">        directories=<span class="variable">$directories</span>;</div><div class="line">        logsSettings=<span class="variable">$logsSettings</span>;</div><div class="line">        runAsync=<span class="string">"false"</span>;</div><div class="line">        f=<span class="string">"json"</span></div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="variable">$responseJson</span>=<span class="built_in">Invoke-RestMethod</span> -Uri <span class="variable">$adminURL</span> -Method Post -Body <span class="variable">$body</span></div><div class="line">    </div><div class="line">    Log-Message <span class="string">"信息：创建站点请求执行完成。"</span>  -PassThru</div><div class="line">    <span class="comment"># END方法2</span></div><div class="line"></div><div class="line">    <span class="keyword">if</span>(<span class="variable">$responseJson</span>.status <span class="nomarkup">-eq</span> <span class="string">"success"</span>)&#123;</div><div class="line">        Log-Message <span class="string">"信息：站点创建完成。"</span> -PassThru</div><div class="line"></div><div class="line">        <span class="built_in">Start-Sleep</span> -Seconds <span class="number">60</span></div><div class="line"></div><div class="line">        <span class="keyword">return</span> <span class="number">1</span></div><div class="line">    &#125;</div><div class="line">    </div><div class="line">    <span class="comment"># messages是Object[]数组类型，转单行字符串</span></div><div class="line">    <span class="variable">$responseMsgs</span>=<span class="variable">$responseJson</span>.messages | <span class="built_in">ForEach-Object</span> &#123;<span class="variable">$_</span>.toString()&#125;</div><div class="line">    <span class="variable">$responseShortMsgs</span>=[string]::Join(<span class="string">""</span>,<span class="variable">$responseMsgs</span>)</div><div class="line">    Log-Message <span class="string">"错误：站点创建失败。错误信息：<span class="variable">$responseShortMsgs</span>"</span> -PassThru</div><div class="line">    Log-Message <span class="string">"错误：站点创建执行返回信息：status=$(<span class="variable">$responseJson</span>.status),messages=<span class="variable">$responseShortMsgs</span>,code=$(<span class="variable">$responseJson</span>.code)"</span></div><div class="line"></div><div class="line">    <span class="keyword">return</span> <span class="number">0</span>  </div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="5-小结"><a href="#5-小结" class="headerlink" title="5.小结"></a>5.小结</h2><p>断断续续的花了很长时间，终于完成了ArcGIS Server的自动化安装的脚本编写，但这还只是万里长征走出了第一步。我的终极想法是使用脚本实现单机环境下Portal for ArcGIS的自动部署。想法的最初来源是，在安装了无数次Portal试用环境之后，终于发现了无聊的重复，是时候让机器来干点这种重复的活了。</p>
+<p>上面的脚本编写测试的环境是：干净的Windows Server 2012 R2、ArcGIS Server 10.4.1。还没来得及在其他环境下做严格测试。</p>
+<p>完整的ArcGIS Server自动部署脚本请<a href="https://github.com/xinligis/ArcGISAutoMate" target="_blank" rel="external">下载</a>。</p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;1-自动化部署思路&quot;&gt;&lt;a href=&quot;#1-自动化部署思路&quot; class=&quot;headerlink&quot; title=&quot;1.自动化部署思路&quot;&gt;&lt;/a&gt;1.自动化部署思路&lt;/h2&gt;&lt;p&gt;单机环境下部署ArcGIS Server主要分为三步：操作系统环境设置、安装和授权A
+    
+    </summary>
+    
+      <category term="地理平台" scheme="http://xinligis.github.io/categories/%E5%9C%B0%E7%90%86%E5%B9%B3%E5%8F%B0/"/>
+    
+    
+      <category term="ArcGIS,PowerShell,自动化部署" scheme="http://xinligis.github.io/tags/ArcGIS-PowerShell-%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>ArcGIS自动化部署实践之一：Chef环境搭建与演练</title>
+    <link href="http://xinligis.github.io/2016/09/08/20160908-AGS10.4.x-ArcGIS%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2%E5%AE%9E%E8%B7%B5%E4%B9%8B%E4%B8%80%EF%BC%9AChef%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E4%B8%8E%E6%BC%94%E7%BB%83/"/>
+    <id>http://xinligis.github.io/2016/09/08/20160908-AGS10.4.x-ArcGIS自动化部署实践之一：Chef环境搭建与演练/</id>
+    <published>2016-09-07T16:00:00.000Z</published>
+    <updated>2016-10-10T07:54:25.668Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="1-Chef概述"><a href="#1-Chef概述" class="headerlink" title="1.Chef概述"></a>1.Chef概述</h2><p>Chef是一款自动化服务器配置管理工具，可以对所管理的对象实行自动化配置，如系统管理，安装软件等。Chef由三大组件组成：<code>Chef Server</code>、<code>Chef Workstation</code>和<code>Chef Node</code>。</p>
+<p><img src="http://od0gjyiqq.bkt.clouddn.com/20160908-chef-components-20161010.png" alt="Chef环境"></p>
+<p><strong>Chef Server：</strong> 核心资源服务器，维护配置脚本，与Nodes机器交互。</p>
+<p><strong>Chef Workstation：</strong> Chef操作平台，提供与Chef server交互的接口。我们在Workstation上创建定义Cookbook，并将Cookbook上传到Chef Server上以保证被管机器能从Chef Server上取得最新的配置指令。</p>
+<p><strong>Chef Node：</strong> 安装了Chef Client并注册了的管理节点。</p>
+<h2 id="2-Chef环境准备"><a href="#2-Chef环境准备" class="headerlink" title="2.Chef环境准备"></a>2.Chef环境准备</h2><h3 id="2-1-软件"><a href="#2-1-软件" class="headerlink" title="2.1 软件"></a>2.1 软件</h3><ul>
+<li>Windows Server 2012 R2</li>
+<li>Chef Development Kit 0.17.17<h3 id="2-2-系统要求"><a href="#2-2-系统要求" class="headerlink" title="2.2 系统要求"></a>2.2 系统要求</h3></li>
+<li>设置固定IP</li>
+<li>开放80和443端口</li>
+<li>打开RDP和WinRM</li>
+</ul>
+<blockquote>
+<p><strong>附：配置Windows开启WinRM服务</strong></p>
+<p>WinRM服务是Windows的远程管理服务，简单理解为Windows版的SSH。在Windows server 2012 R2操作系统中，WinRM服务默认是关闭的，需要启用它。首先需要修改组策略。</p>
+<ol>
+<li>在<code>cmd</code>中输入<code>gpedit.msc</code>打开组策略编辑器，选择<code>计算机配置-&gt;管理模板-&gt;Windows组件-&gt;Windows远程管理(WinRM)-&gt;WinRM服务</code>中，选择<code>允许通过WinRM进行远程服务器管理</code>，把该策略选为启用，并修改IPv4和IPv6过滤器为*。<br><img src="http://od0gjyiqq.bkt.clouddn.com/20160908-chef-winrm-20161010.png" alt="WinRM策略修改"></li>
+</ol>
+<p><strong>建议配置基本身份验证、未加密通信、HTTP和HTTPS监听。</strong></p>
+<ol>
+<li>在控制面板中选择windows防火墙，单击例外选项卡，选择Windows 远程管理复选框。如果看不到该复选框，请单击添加程序以添加 Windows 远程管理。</li>
+<li>检查WinRM是否启动：<code>winrm e winrm/config/listener</code></li>
+<li>配置WinRM：<code>winrm quickconfig</code><blockquote>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="meta">&gt;&gt;</span> <span class="symbol">C:</span>\Users\Administrator&gt;winrm quickconfig</div><div class="line"><span class="meta">&gt;&gt;</span> 已在此计算机上运行 WinRM 服务。</div><div class="line"><span class="meta">&gt;&gt;</span> WinRM 没有设置成为了管理此计算机而允许对其进行远程访问。</div><div class="line"><span class="meta">&gt;&gt;</span> 必须进行以下更改:</div><div class="line">&gt;&gt; </div><div class="line">&gt;&gt; 配置 LocalAccountTokenFilterPolicy 以远程向本地用户授予管理权限。</div><div class="line"><span class="meta">&gt;&gt;</span> </div><div class="line"><span class="meta">&gt;&gt;</span> 执行这些更改吗[y/n]? y</div><div class="line"><span class="meta">&gt;&gt;</span> </div><div class="line"><span class="meta">&gt;&gt;</span> WinRM 已经进行了更新，以用于远程管理。</div><div class="line"><span class="meta">&gt;&gt;</span> </div><div class="line"><span class="meta">&gt;&gt;</span> 已配置 LocalAccountTokenFilterPolicy 以远程向本地用户授予管理权限。</div><div class="line">&gt;</div></pre></td></tr></table></figure>
+</blockquote>
+</li>
+</ol>
+</blockquote>
+<h3 id="2-3-Chef-DK安装"><a href="#2-3-Chef-DK安装" class="headerlink" title="2.3 Chef DK安装"></a>2.3 Chef DK安装</h3><p>默认安装即可。</p>
+<h2 id="3-Chef演练一：Resource资源的使用"><a href="#3-Chef演练一：Resource资源的使用" class="headerlink" title="3.Chef演练一：Resource资源的使用"></a>3.Chef演练一：Resource资源的使用</h2><p><strong>Chef resource：</strong> 定义系统资源，如文件，模板，包，文件夹等。</p>
+<p><strong>chef recipe：</strong> 执行任务的地方，是一个文本文件，包含了各种resource资源。</p>
+<h3 id="3-1-创建工作目录"><a href="#3-1-创建工作目录" class="headerlink" title="3.1 创建工作目录"></a>3.1 创建工作目录</h3><p>打开PowerShell，使用命令创建chef-repo文件夹。</p>
+<p><code>mkdir chef-repo</code></p>
+<h3 id="3-2-创建INI文件测试"><a href="#3-2-创建INI文件测试" class="headerlink" title="3.2 创建INI文件测试"></a>3.2 创建INI文件测试</h3><p>在chef-repo目录下创建<strong>hello.rb</strong>文件，并输入如下的内容：<br><figure class="highlight ruby"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">file <span class="string">'C:\Users\Administrator\chef-repo\settings.ini'</span> <span class="keyword">do</span></div><div class="line">  content <span class="string">'greeting=hello world'</span></div><div class="line"><span class="keyword">end</span></div></pre></td></tr></table></figure></p>
+<p><strong>第一次执行<code>chef-client</code>命令</strong></p>
+<p>在命令行中输入<code>chef-client</code>命令执行。默认情况下，chef-client命令会从chef server上下载chef代码执行，这里使用的本地模式，即执行本地的chef代码。</p>
+<p><code>chef-client --local-mode hello.rb</code></p>
+<p>执行效果如下：<br><figure class="highlight groovy"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">PS <span class="string">C:</span>\automate\chef-repo&gt; chef-client --local-mode hello.rb</div><div class="line">[<span class="number">2016</span><span class="number">-09</span><span class="number">-09</span><span class="string">T11:</span><span class="number">03</span>:<span class="number">25</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="string">WARN:</span> No config file found or specified on command line, using command line options.</div><div class="line">[<span class="number">2016</span><span class="number">-09</span><span class="number">-09</span><span class="string">T11:</span><span class="number">03</span>:<span class="number">25</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="string">WARN:</span> No cookbooks directory found at or above current directory.  Assuming <span class="string">C:</span><span class="regexp">/automate/</span>chef</div><div class="line">-repo.</div><div class="line">Starting Chef Client, version <span class="number">12.13</span><span class="number">.37</span></div><div class="line">resolving cookbooks <span class="keyword">for</span> run <span class="string">list:</span> []</div><div class="line">Synchronizing <span class="string">Cookbooks:</span></div><div class="line">Installing Cookbook <span class="string">Gems:</span></div><div class="line">Compiling Cookbooks...</div><div class="line">[<span class="number">2016</span><span class="number">-09</span><span class="number">-09</span><span class="string">T11:</span><span class="number">03</span>:<span class="number">46</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="string">WARN:</span> Node WIN-JQ088CD77EE has an empty run list.</div><div class="line">Converging <span class="number">1</span> resources</div><div class="line"><span class="string">Recipe:</span> <span class="meta">@recipe</span><span class="string">_files:</span>:<span class="string">C:</span><span class="regexp">/automate/</span>chef-repo/hello.rb</div><div class="line">  * file[<span class="string">c:</span>\automate\chef-repo\settings.ini] action create</div><div class="line">    - create <span class="keyword">new</span> file <span class="string">c:</span>\automate\chef-repo\settings.ini</div><div class="line">    - update content <span class="keyword">in</span> file <span class="string">c:</span>\automate\chef-repo\settings.ini from none to <span class="number">6823</span>fa</div><div class="line">    --- <span class="string">c:</span>\automate\chef-repo\settings.ini      <span class="number">2016</span><span class="number">-09</span><span class="number">-09</span> <span class="number">11</span>:<span class="number">03</span>:<span class="number">46.000000000</span> +<span class="number">0800</span></div><div class="line">    +++ <span class="string">c:</span>\automate\chef-repo/chef-settings.ini20160909<span class="number">-2620</span><span class="number">-15</span>o8onp    <span class="number">2016</span><span class="number">-09</span><span class="number">-09</span> <span class="number">11</span>:<span class="number">03</span>:<span class="number">46.000000000</span> +<span class="number">0800</span></div><div class="line">    @@ <span class="number">-1</span> +<span class="number">1</span>,<span class="number">2</span> @@</div><div class="line">    +greeting=hello world</div><div class="line"></div><div class="line">Running <span class="string">handlers:</span></div><div class="line">Running handlers complete</div><div class="line">Chef Client finished, <span class="number">1</span>/<span class="number">1</span> resources updated <span class="keyword">in</span> <span class="number">20</span> seconds</div></pre></td></tr></table></figure></p>
+<p>执行完成会在目录下生成settings.ini文件，查看该文件内容：<br><figure class="highlight mathematica"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">PS <span class="keyword">C</span>:\automate\chef-repo&gt; <span class="keyword">Get</span>-Content settings.ini</div><div class="line">greeting=hello world</div></pre></td></tr></table></figure></p>
+<p><strong>再次执行<code>chef-client</code>命令</strong></p>
+<p><code>chef-client --local-mode hello.rb</code></p>
+<p>执行效果如下：</p>
+<figure class="highlight less"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">PS <span class="attribute">C</span>:\automate\chef-repo&gt; chef-client --local-mode hello.rb</div><div class="line">[<span class="number">2016</span><span class="attribute">-09-09T11</span>:<span class="number">21</span>:<span class="number">56</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="attribute">WARN</span>: No config file found or specified on command line, using command line options.</div><div class="line">[<span class="number">2016</span><span class="attribute">-09-09T11</span>:<span class="number">21</span>:<span class="number">56</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="attribute">WARN</span>: No cookbooks directory found at or above current directory.  Assuming <span class="attribute">C</span>:/automate/chef</div><div class="line">-repo.</div><div class="line">Starting Chef Client, version <span class="number">12.13</span>.<span class="number">37</span></div><div class="line">resolving cookbooks for run <span class="attribute">list</span>: []</div><div class="line">Synchronizing <span class="attribute">Cookbooks</span>:</div><div class="line">Installing Cookbook <span class="attribute">Gems</span>:</div><div class="line">Compiling Cookbooks...</div><div class="line">[<span class="number">2016</span><span class="attribute">-09-09T11</span>:<span class="number">22</span>:<span class="number">10</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="attribute">WARN</span>: Node WIN-JQ088CD77EE has an empty run list.</div><div class="line">Converging <span class="number">1</span> resources</div><div class="line"><span class="attribute">Recipe</span>: <span class="variable">@recipe_files</span>::<span class="attribute">C</span>:/automate/chef-repo/hello.rb</div><div class="line">  * file[<span class="attribute">c</span>:\automate\chef-repo\settings.ini] action create (up to date)</div><div class="line"></div><div class="line">Running <span class="attribute">handlers</span>:</div><div class="line">Running handlers complete</div><div class="line">Chef Client finished, <span class="number">0</span>/<span class="number">1</span> resources updated in <span class="number">14</span> seconds</div></pre></td></tr></table></figure>
+<p>chef-client执行时会检查当前配置状态，如果没有变化则不会重复执行。</p>
+<p><strong>修改INI内容，测试配置更新</strong></p>
+<p>修改hello.rb文件中的输出内容，如：<br><figure class="highlight ruby"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">file <span class="string">'c:\automate\chef-repo\settings.ini'</span> <span class="keyword">do</span></div><div class="line">	content <span class="string">'greeting=hello world，ruby！'</span></div><div class="line"><span class="keyword">end</span></div></pre></td></tr></table></figure></p>
+<p>再执行<code>chef-client</code>命令：<br><figure class="highlight vim"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line">PS C:\automate\chef-repo&gt; chef-client --local-<span class="keyword">mode</span> hello.rb</div><div class="line">[<span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span>T11:<span class="number">29</span>:<span class="number">37</span>+<span class="number">08</span>:<span class="number">00</span>] WARN: No config <span class="keyword">file</span> found <span class="built_in">or</span> specified <span class="keyword">on</span> <span class="keyword">command</span> <span class="built_in">line</span>, using <span class="keyword">command</span> <span class="built_in">line</span> <span class="keyword">options</span>.</div><div class="line">[<span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span>T11:<span class="number">29</span>:<span class="number">37</span>+<span class="number">08</span>:<span class="number">00</span>] WARN: No cookbooks directory found at <span class="built_in">or</span> above current directory.  Assuming C:/automate/chef</div><div class="line">-repo.</div><div class="line">Starting Chef Client, <span class="keyword">version</span> <span class="number">12.13</span>.<span class="number">37</span></div><div class="line">resolving cookbooks <span class="keyword">for</span> run lis<span class="variable">t:</span> []</div><div class="line">Synchronizing Cookbook<span class="variable">s:</span></div><div class="line">Installing Cookbook Gem<span class="variable">s:</span></div><div class="line">Compiling Cookbooks...</div><div class="line">[<span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span>T11:<span class="number">29</span>:<span class="number">50</span>+<span class="number">08</span>:<span class="number">00</span>] WARN: Node WIN-JQ088CD77EE <span class="built_in">has</span> <span class="keyword">an</span> <span class="built_in">empty</span> run <span class="keyword">list</span>.</div><div class="line">Converging <span class="number">1</span> resources</div><div class="line">Recipe: @recipe_file<span class="variable">s:</span>:C:/automate/chef-repo/hello.rb</div><div class="line">  * <span class="keyword">file</span>[<span class="keyword">c</span>:\automate\chef-repo\settings.ini] action create</div><div class="line">    - <span class="keyword">update</span> content in <span class="keyword">file</span> <span class="keyword">c</span>:\automate\chef-repo\settings.ini from <span class="number">6823</span>fa <span class="keyword">to</span> a79429</div><div class="line">    --- <span class="keyword">c</span>:\automate\chef-repo\settings.ini      <span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span> <span class="number">11</span>:<span class="number">03</span>:<span class="number">46.000000000</span> +<span class="number">0800</span></div><div class="line">    +++ <span class="keyword">c</span>:\automate\chef-repo/chef-settings.ini20160909-<span class="number">2424</span>-<span class="number">5</span>cqiwi     <span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span> <span class="number">11</span>:<span class="number">29</span>:<span class="number">50.000000000</span> +<span class="number">0800</span></div><div class="line">    @@ -<span class="number">1</span>,<span class="number">2</span> +<span class="number">1</span>,<span class="number">2</span> @@</div><div class="line">    -greeting=hello world</div><div class="line">    +greeting=hello world，<span class="keyword">ruby</span>！</div><div class="line"></div><div class="line">Running handler<span class="variable">s:</span></div><div class="line">Running handlers <span class="built_in">complete</span></div><div class="line">Chef Client finished, <span class="number">1</span>/<span class="number">1</span> resources updated in <span class="number">12</span> seconds</div></pre></td></tr></table></figure></p>
+<p>从上面执行结果可以看到chef会更新执行。</p>
+<p><strong>删除INI文件测试</strong></p>
+<p>在工作目录下创建<strong>goodbye.rb</strong>文件，文件内容如下：<br><figure class="highlight ruby"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">file <span class="string">'c:\automate\chef-repo\settings.ini'</span> <span class="keyword">do</span></div><div class="line">	action <span class="symbol">:delete</span></div><div class="line"><span class="keyword">end</span></div></pre></td></tr></table></figure></p>
+<p>执行<code>chef-client</code>后，可查看settings.ini文件已经删除。</p>
+<h3 id="3-3-小结"><a href="#3-3-小结" class="headerlink" title="3.3 小结"></a>3.3 小结</h3><ol>
+<li>chef提供了多种resource供操作，resource包含了系统状态描述和动作，如上例中的file，以及创建和删除操作。</li>
+<li>recipe组织资源，定义资源执行顺序。如上例中的hello.rb文件和goodbye.rb文件。</li>
+</ol>
+<h2 id="4-Chef演练二：安装软件和启动服务"><a href="#4-Chef演练二：安装软件和启动服务" class="headerlink" title="4.Chef演练二：安装软件和启动服务"></a>4.Chef演练二：安装软件和启动服务</h2><h3 id="4-1-安装IIS"><a href="#4-1-安装IIS" class="headerlink" title="4.1 安装IIS"></a>4.1 安装IIS</h3><p>以安装IIS为例，新建<code>webserver.rb</code>文件，文件内容如下：<br><figure class="highlight ruby"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">powershell_script <span class="string">'Install IIS'</span> <span class="keyword">do</span></div><div class="line">	code <span class="string">'Add-WindowsFeature Web-Server'</span></div><div class="line">	guard_interpreter <span class="symbol">:powershell_script</span></div><div class="line">	not_if <span class="string">"(Get-WindowsFeature -Name Web-Server).Installed"</span></div><div class="line"><span class="keyword">end</span></div></pre></td></tr></table></figure></p>
+<p><strong>第一次执行<code>chef-client</code>命令</strong></p>
+<p><code>chef-client --local-mode webserver.rb</code></p>
+<p>执行效果：<br><figure class="highlight less"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">PS <span class="attribute">C</span>:\automate\chef-repo&gt; chef-client --local-mode webserver.rb</div><div class="line">[<span class="number">2016</span><span class="attribute">-09-09T14</span>:<span class="number">25</span>:<span class="number">10</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="attribute">WARN</span>: No config file found or specified on command line, using command line options.</div><div class="line">[<span class="number">2016</span><span class="attribute">-09-09T14</span>:<span class="number">25</span>:<span class="number">10</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="attribute">WARN</span>: No cookbooks directory found at or above current directory.  Assuming <span class="attribute">C</span>:/automate/chef</div><div class="line">-repo.</div><div class="line">Starting Chef Client, version <span class="number">12.13</span>.<span class="number">37</span></div><div class="line">resolving cookbooks for run <span class="attribute">list</span>: []</div><div class="line">Synchronizing <span class="attribute">Cookbooks</span>:</div><div class="line">Installing Cookbook <span class="attribute">Gems</span>:</div><div class="line">Compiling Cookbooks...</div><div class="line">[<span class="number">2016</span><span class="attribute">-09-09T14</span>:<span class="number">25</span>:<span class="number">23</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="attribute">WARN</span>: Node WIN-JQ088CD77EE has an empty run list.</div><div class="line">Converging <span class="number">1</span> resources</div><div class="line"><span class="attribute">Recipe</span>: <span class="variable">@recipe_files</span>::<span class="attribute">C</span>:/automate/chef-repo/webserver.rb</div><div class="line">  * powershell_script[Install IIS] action run</div><div class="line">    - execute <span class="string">"C:\Windows\system32\WindowsPowerShell\v1.0\powershell.exe"</span> -NoLogo -NonInteractive -NoProfile -ExecutionP</div><div class="line">olicy Bypass -InputFormat None -File <span class="string">"C:/Users/ADMINI~1/AppData/Local/Temp/1/chef-script20160909-1844-1jn8f49.ps1"</span></div><div class="line"></div><div class="line">Running <span class="attribute">handlers</span>:</div><div class="line">Running handlers complete</div><div class="line">Chef Client finished, <span class="number">1</span>/<span class="number">1</span> resources updated in <span class="number">01</span> minutes <span class="number">12</span> seconds</div></pre></td></tr></table></figure></p>
+<p><strong>第二次执行<code>chef-client</code>命令</strong></p>
+<p>执行效果：<br><figure class="highlight less"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">PS <span class="attribute">C</span>:\automate\chef-repo&gt; chef-client --local-mode webserver.rb</div><div class="line">[<span class="number">2016</span><span class="attribute">-09-09T14</span>:<span class="number">31</span>:<span class="number">32</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="attribute">WARN</span>: No config file found or specified on command line, using command line options.</div><div class="line">[<span class="number">2016</span><span class="attribute">-09-09T14</span>:<span class="number">31</span>:<span class="number">32</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="attribute">WARN</span>: No cookbooks directory found at or above current directory.  Assuming <span class="attribute">C</span>:/automate/chef</div><div class="line">-repo.</div><div class="line">Starting Chef Client, version <span class="number">12.13</span>.<span class="number">37</span></div><div class="line">resolving cookbooks for run <span class="attribute">list</span>: []</div><div class="line">Synchronizing <span class="attribute">Cookbooks</span>:</div><div class="line">Installing Cookbook <span class="attribute">Gems</span>:</div><div class="line">Compiling Cookbooks...</div><div class="line">[<span class="number">2016</span><span class="attribute">-09-09T14</span>:<span class="number">31</span>:<span class="number">45</span>+<span class="number">08</span>:<span class="number">00</span>] <span class="attribute">WARN</span>: Node WIN-JQ088CD77EE has an empty run list.</div><div class="line">Converging <span class="number">1</span> resources</div><div class="line"><span class="attribute">Recipe</span>: <span class="variable">@recipe_files</span>::<span class="attribute">C</span>:/automate/chef-repo/webserver.rb</div><div class="line">  * powershell_script[Install IIS] action run (skipped due to not_if)</div><div class="line"></div><div class="line">Running <span class="attribute">handlers</span>:</div><div class="line">Running handlers complete</div><div class="line">Chef Client finished, <span class="number">0</span>/<span class="number">1</span> resources updated in <span class="number">13</span> seconds</div></pre></td></tr></table></figure></p>
+<p>从执行结果可以看出，由于有not_if语句，chef不会重新安装IIS。</p>
+<h3 id="4-2-启动3W服务"><a href="#4-2-启动3W服务" class="headerlink" title="4.2 启动3W服务"></a>4.2 启动3W服务</h3><p>修改webserver.rb文件，增加启动3W的服务：<br><figure class="highlight ruby"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">powershell_script <span class="string">'Install IIS'</span> <span class="keyword">do</span></div><div class="line">	code <span class="string">'Add-WindowsFeature Web-Server'</span></div><div class="line">	guard_interpreter <span class="symbol">:powershell_script</span></div><div class="line">	not_if <span class="string">"(Get-WindowsFeature -Name Web-Server).Installed"</span></div><div class="line"><span class="keyword">end</span></div><div class="line"></div><div class="line">service <span class="string">'w3svc'</span> <span class="keyword">do</span></div><div class="line">	action [<span class="symbol">:enable</span>, <span class="symbol">:start</span>]</div><div class="line"><span class="keyword">end</span></div></pre></td></tr></table></figure></p>
+<p>执行<code>chef-client</code>命令：<br><figure class="highlight vim"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line">PS C:\automate\chef-repo&gt; chef-client --local-<span class="keyword">mode</span> webserver.rb</div><div class="line">[<span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span>T14:<span class="number">34</span>:<span class="number">46</span>+<span class="number">08</span>:<span class="number">00</span>] WARN: No config <span class="keyword">file</span> found <span class="built_in">or</span> specified <span class="keyword">on</span> <span class="keyword">command</span> <span class="built_in">line</span>, using <span class="keyword">command</span> <span class="built_in">line</span> <span class="keyword">options</span>.</div><div class="line">[<span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span>T14:<span class="number">34</span>:<span class="number">46</span>+<span class="number">08</span>:<span class="number">00</span>] WARN: No cookbooks directory found at <span class="built_in">or</span> above current directory.  Assuming C:/automate/chef</div><div class="line">-repo.</div><div class="line">Starting Chef Client, <span class="keyword">version</span> <span class="number">12.13</span>.<span class="number">37</span></div><div class="line">resolving cookbooks <span class="keyword">for</span> run lis<span class="variable">t:</span> []</div><div class="line">Synchronizing Cookbook<span class="variable">s:</span></div><div class="line">Installing Cookbook Gem<span class="variable">s:</span></div><div class="line">Compiling Cookbooks...</div><div class="line">[<span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span>T14:<span class="number">34</span>:<span class="number">59</span>+<span class="number">08</span>:<span class="number">00</span>] WARN: Node WIN-JQ088CD77EE <span class="built_in">has</span> <span class="keyword">an</span> <span class="built_in">empty</span> run <span class="keyword">list</span>.</div><div class="line">Converging <span class="number">2</span> resources</div><div class="line">Recipe: @recipe_file<span class="variable">s:</span>:C:/automate/chef-repo/webserver.rb</div><div class="line">  * powershell_script[Install IIS] action run (skipped due <span class="keyword">to</span> not_if)</div><div class="line">  * windows_service[w3svc] action enable (<span class="keyword">up</span> <span class="keyword">to</span> date)</div><div class="line">  * windows_service[w3svc] action start (<span class="keyword">up</span> <span class="keyword">to</span> date)</div><div class="line"></div><div class="line">Running handler<span class="variable">s:</span></div><div class="line">Running handlers <span class="built_in">complete</span></div><div class="line">Chef Client finished, <span class="number">0</span>/<span class="number">3</span> resources updated in <span class="number">13</span> seconds</div></pre></td></tr></table></figure></p>
+<h3 id="4-3-定义web页面"><a href="#4-3-定义web页面" class="headerlink" title="4.3 定义web页面"></a>4.3 定义web页面</h3><p>继续修改webserver.rb文件：<br><figure class="highlight ruby"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">powershell_script <span class="string">'Install IIS'</span> <span class="keyword">do</span></div><div class="line">	code <span class="string">'Add-WindowsFeature Web-Server'</span></div><div class="line">	guard_interpreter <span class="symbol">:powershell_script</span></div><div class="line">	not_if <span class="string">"(Get-WindowsFeature -Name Web-Server).Installed"</span></div><div class="line"><span class="keyword">end</span></div><div class="line"></div><div class="line">service <span class="string">'w3svc'</span> <span class="keyword">do</span></div><div class="line">	action [<span class="symbol">:enable</span>, <span class="symbol">:start</span>]</div><div class="line"><span class="keyword">end</span></div><div class="line"></div><div class="line">file <span class="string">'C:\inetpub\wwwroot\default.htm'</span> <span class="keyword">do</span></div><div class="line">	content <span class="string">'&lt;html&gt;</span></div><div class="line">	&lt;body&gt;</div><div class="line">		&lt;h1&gt;hello, chef.&lt;/h1&gt;</div><div class="line">	&lt;/body&gt;</div><div class="line">	&lt;/html&gt;'</div><div class="line"><span class="keyword">end</span></div></pre></td></tr></table></figure></p>
+<p>执行<code>chef-client</code>命令：<br><figure class="highlight vim"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div></pre></td><td class="code"><pre><div class="line">PS C:\automate\chef-repo&gt; chef-client --local-<span class="keyword">mode</span> webserver.rb</div><div class="line">[<span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span>T14:<span class="number">40</span>:<span class="number">56</span>+<span class="number">08</span>:<span class="number">00</span>] WARN: No config <span class="keyword">file</span> found <span class="built_in">or</span> specified <span class="keyword">on</span> <span class="keyword">command</span> <span class="built_in">line</span>, using <span class="keyword">command</span> <span class="built_in">line</span> <span class="keyword">options</span>.</div><div class="line">[<span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span>T14:<span class="number">40</span>:<span class="number">56</span>+<span class="number">08</span>:<span class="number">00</span>] WARN: No cookbooks directory found at <span class="built_in">or</span> above current directory.  Assuming C:/automate/chef</div><div class="line">-repo.</div><div class="line">Starting Chef Client, <span class="keyword">version</span> <span class="number">12.13</span>.<span class="number">37</span></div><div class="line">resolving cookbooks <span class="keyword">for</span> run lis<span class="variable">t:</span> []</div><div class="line">Synchronizing Cookbook<span class="variable">s:</span></div><div class="line">Installing Cookbook Gem<span class="variable">s:</span></div><div class="line">Compiling Cookbooks...</div><div class="line">[<span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span>T14:<span class="number">41</span>:<span class="number">09</span>+<span class="number">08</span>:<span class="number">00</span>] WARN: Node WIN-JQ088CD77EE <span class="built_in">has</span> <span class="keyword">an</span> <span class="built_in">empty</span> run <span class="keyword">list</span>.</div><div class="line">Converging <span class="number">3</span> resources</div><div class="line">Recipe: @recipe_file<span class="variable">s:</span>:C:/automate/chef-repo/webserver.rb</div><div class="line">  * powershell_script[Install IIS] action run (skipped due <span class="keyword">to</span> not_if)</div><div class="line">  * windows_service[w3svc] action enable (<span class="keyword">up</span> <span class="keyword">to</span> date)</div><div class="line">  * windows_service[w3svc] action start (<span class="keyword">up</span> <span class="keyword">to</span> date)</div><div class="line">  * <span class="keyword">file</span>[C:\inetpub\wwwroot\default.htm] action create</div><div class="line">    - create <span class="keyword">new</span> <span class="keyword">file</span> C:\inetpub\wwwroot\default.htm</div><div class="line">    - <span class="keyword">update</span> content in <span class="keyword">file</span> C:\inetpub\wwwroot\default.htm from none <span class="keyword">to</span> <span class="number">64538</span><span class="keyword">b</span></div><div class="line">    --- C:\inetpub\wwwroot\default.htm  <span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span> <span class="number">14</span>:<span class="number">41</span>:<span class="number">10.000000000</span> +<span class="number">0800</span></div><div class="line">    +++ C:\inetpub\wwwroot/chef-default.htm20160909-<span class="number">3184</span>-<span class="number">18</span>p9gz5        <span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span> <span class="number">14</span>:<span class="number">41</span>:<span class="number">10.000000000</span> +<span class="number">0800</span></div><div class="line">    @@ -<span class="number">1</span> +<span class="number">1</span>,<span class="number">6</span> @@</div><div class="line">    +<span class="symbol">&lt;html&gt;</span></div><div class="line">    +   <span class="symbol">&lt;body&gt;</span></div><div class="line">    +           <span class="symbol">&lt;h1&gt;</span>hello, chef.&lt;/h1&gt;</div><div class="line">    +   &lt;/body&gt;</div><div class="line">    +   &lt;/html&gt;</div><div class="line"></div><div class="line">Running handler<span class="variable">s:</span></div><div class="line">Running handlers <span class="built_in">complete</span></div><div class="line">Chef Client finished, <span class="number">1</span>/<span class="number">4</span> resources updated in <span class="number">13</span> seconds</div></pre></td></tr></table></figure></p>
+<p>执行完成会创建<code>c:\inetpub\wwwroot\defualt.htm</code>文件。</p>
+<h3 id="4-3-测试Web页面"><a href="#4-3-测试Web页面" class="headerlink" title="4.3 测试Web页面"></a>4.3 测试Web页面</h3><p>浏览器中访问default页面即可。</p>
+<h2 id="5-Chef演练三：cookbook使用"><a href="#5-Chef演练三：cookbook使用" class="headerlink" title="5.Chef演练三：cookbook使用"></a>5.Chef演练三：cookbook使用</h2><h3 id="5-1-Cookbook概述"><a href="#5-1-Cookbook概述" class="headerlink" title="5.1 Cookbook概述"></a>5.1 Cookbook概述</h3><p>cookbook定义了一系列的部署任务，用于部署一套完整的用户环境。cookbook主要包括了以下几个组件：</p>
+<ul>
+<li><strong>Recipe：</strong> 用来定义对一个目标机器做部署的整个操作，比如，如何安装，安装哪些包，怎样做配置等。</li>
+<li><strong>Attribute：</strong> 用来定义一个目标机器的属性值的。类似于定义一个全局变量，通常用来给 Cookbook 的其他组件提供属性值。</li>
+<li><strong>File：</strong> 用来作部署的文件。一般会根据操作系统、平台等定义不同的文件配置。</li>
+<li><strong>Library：</strong> 用来对 Cookbook 的功能做扩展。我们可以用 Ruby 语言编写自己的类来供 Recipe 调用。</li>
+<li><strong>Resource：</strong> 用来自定义一个状态的运行规则。比如，针对服务的时候，我们可以定义几种不同的状态规则。</li>
+<li><strong>Provider：</strong> 用来定义具体某个 Resource 的执行内容。从编程的角度可以理解为 Resource 定义了一个接口，而 Provider 是这个接口的实现。</li>
+<li><strong>Template：</strong> 一些内嵌了 Ruby 标签的文件，通常用来定义配置文件。</li>
+<li><strong>Metadata：</strong> 定义了 Cookbook 的属性值，比如，当前的 Cookbook 的版本，支持的平台，对其他 Cookbook 的依赖等信息。</li>
+</ul>
+<h3 id="5-2-创建cookbook"><a href="#5-2-创建cookbook" class="headerlink" title="5.2 创建cookbook"></a>5.2 创建cookbook</h3><p>先创建cookbooks文件夹：<code>mkdir cookbooks</code></p>
+<p>执行chef命令创建cookbook：</p>
+<p><code>chef generate cookbook cookbooks\learn_chef_iis</code></p>
+<p>执行效果：<br><figure class="highlight vhdl"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">PS C:\automate\chef-repo&gt; chef <span class="keyword">generate</span> cookbook cookbooks\learn_chef_iis</div><div class="line">Generating cookbook learn_chef_iis</div><div class="line">- Ensuring correct cookbook <span class="keyword">file</span> content</div><div class="line">- Ensuring delivery <span class="keyword">configuration</span></div><div class="line">- Ensuring correct delivery build cookbook content</div><div class="line"></div><div class="line">Your cookbook <span class="keyword">is</span> ready. <span class="keyword">Type</span> `cd cookbooks\learn_chef_iis` <span class="keyword">to</span> enter it.</div><div class="line"></div><div class="line">There are several commands you can run <span class="keyword">to</span> get started locally developing <span class="keyword">and</span> testing your cookbook.</div><div class="line"><span class="keyword">Type</span> `delivery local <span class="comment">--help` to see a full list.</span></div><div class="line"></div><div class="line">Why <span class="keyword">not</span> start by writing a test? Tests <span class="keyword">for</span> the <span class="keyword">default</span> recipe are stored at:</div><div class="line"></div><div class="line">test/recipes/default_test.rb</div><div class="line"></div><div class="line"><span class="keyword">If</span> you<span class="symbol">'d</span> prefer <span class="keyword">to</span> dive right <span class="keyword">in</span>, the <span class="keyword">default</span> recipe can be found at:</div><div class="line"></div><div class="line">recipes/<span class="keyword">default</span>.rb</div></pre></td></tr></table></figure></p>
+<h3 id="5-3-创建template"><a href="#5-3-创建template" class="headerlink" title="5.3 创建template"></a>5.3 创建template</h3><p>将上节示例中的Web页面创建成template。</p>
+<p>执行chef命令创建template：</p>
+<p><code>chef generate template cookbooks\learn_chef_iis default.htm</code></p>
+<p>执行效果：<br><figure class="highlight groovy"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">PS <span class="string">C:</span>\automate\chef-repo&gt; chef generate template cookbooks\learn_chef_iis <span class="keyword">default</span>.htm</div><div class="line"><span class="string">Recipe:</span> <span class="string">code_generator:</span>:template</div><div class="line">  * directory[cookbooks<span class="regexp">/learn_chef_iis/</span>templates/<span class="keyword">default</span>] action create</div><div class="line">    - create <span class="keyword">new</span> directory cookbooks<span class="regexp">/learn_chef_iis/</span>templates/<span class="keyword">default</span></div><div class="line">  * template[cookbooks<span class="regexp">/learn_chef_iis/</span>templates/<span class="keyword">default</span>.htm.erb] action create</div><div class="line">    - create <span class="keyword">new</span> file cookbooks<span class="regexp">/learn_chef_iis/</span>templates/<span class="keyword">default</span>.htm.erb</div><div class="line">    - update content <span class="keyword">in</span> file cookbooks<span class="regexp">/learn_chef_iis/</span>templates/<span class="keyword">default</span>.htm.erb from none to e3b0c4</div><div class="line">    (diff output suppressed by config)</div></pre></td></tr></table></figure></p>
+<p>执行完成，会在<em>cookbooks/learn_chef_iis</em>下常见template文件夹，以及default.htm.erb文件。将页面内容复制到该文件中：<br><figure class="highlight html"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">html</span>&gt;</span></div><div class="line">	<span class="tag">&lt;<span class="name">body</span>&gt;</span></div><div class="line">		<span class="tag">&lt;<span class="name">h1</span>&gt;</span>hello, chef.<span class="tag">&lt;/<span class="name">h1</span>&gt;</span></div><div class="line">	<span class="tag">&lt;/<span class="name">body</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></div></pre></td></tr></table></figure></p>
+<h3 id="5-4-更新recipe内容"><a href="#5-4-更新recipe内容" class="headerlink" title="5.4 更新recipe内容"></a>5.4 更新recipe内容</h3><p>编辑recipe\default.rb文件：<br><figure class="highlight ruby"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">powershell_script <span class="string">'Install IIS'</span> <span class="keyword">do</span></div><div class="line">	code <span class="string">'Add-WindowsFeature Web-Server'</span></div><div class="line">	guard_interpreter <span class="symbol">:powershell_script</span></div><div class="line">	not_if <span class="string">"(Get-WindowsFeature -Name Web-Server).Installed"</span></div><div class="line"><span class="keyword">end</span></div><div class="line"></div><div class="line">service <span class="string">'w3svc'</span> <span class="keyword">do</span></div><div class="line">	action [<span class="symbol">:enable</span>, <span class="symbol">:start</span>]</div><div class="line"><span class="keyword">end</span></div><div class="line"></div><div class="line">template <span class="string">'c:\inetpub\wwwroot\index.htm'</span> <span class="keyword">do</span></div><div class="line">	source <span class="string">'default.htm.erb'</span></div><div class="line"><span class="keyword">end</span></div></pre></td></tr></table></figure></p>
+<h3 id="5-5-执行cookbook"><a href="#5-5-执行cookbook" class="headerlink" title="5.5 执行cookbook"></a>5.5 执行cookbook</h3><p>执行cookbook使用命令：</p>
+<p><code>chef-client --local-mode --runlist &#39;recipe[learn_chef_iis]&#39;</code></p>
+<p>执行效果：<br><figure class="highlight vim"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div></pre></td><td class="code"><pre><div class="line">PS C:\automate\chef-repo&gt; chef-client --local-<span class="keyword">mode</span> --runlist <span class="string">'recipe[learn_chef_iis]'</span></div><div class="line">[<span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span>T15:<span class="number">44</span>:<span class="number">50</span>+<span class="number">08</span>:<span class="number">00</span>] WARN: No config <span class="keyword">file</span> found <span class="built_in">or</span> specified <span class="keyword">on</span> <span class="keyword">command</span> <span class="built_in">line</span>, using <span class="keyword">command</span> <span class="built_in">line</span> <span class="keyword">options</span>.</div><div class="line">Starting Chef Client, <span class="keyword">version</span> <span class="number">12.13</span>.<span class="number">37</span></div><div class="line">resolving cookbooks <span class="keyword">for</span> run lis<span class="variable">t:</span> [<span class="string">"learn_chef_iis"</span>]</div><div class="line">Synchronizing Cookbook<span class="variable">s:</span></div><div class="line">  - learn_chef_iis (<span class="number">0.1</span>.<span class="number">0</span>)</div><div class="line">Installing Cookbook Gem<span class="variable">s:</span></div><div class="line">Compiling Cookbooks...</div><div class="line">Converging <span class="number">3</span> resources</div><div class="line">Recipe: learn_chef_ii<span class="variable">s:</span>:default</div><div class="line">  * powershell_script[Install IIS] action run (skipped due <span class="keyword">to</span> not_if)</div><div class="line">  * windows_service[w3svc] action enable (<span class="keyword">up</span> <span class="keyword">to</span> date)</div><div class="line">  * windows_service[w3svc] action start (<span class="keyword">up</span> <span class="keyword">to</span> date)</div><div class="line">  * template[<span class="keyword">c</span>:\inetpub\wwwroot\<span class="built_in">index</span>.htm] action create</div><div class="line">    - create <span class="keyword">new</span> <span class="keyword">file</span> <span class="keyword">c</span>:\inetpub\wwwroot\<span class="built_in">index</span>.htm</div><div class="line">    - <span class="keyword">update</span> content in <span class="keyword">file</span> <span class="keyword">c</span>:\inetpub\wwwroot\<span class="built_in">index</span>.htm from none <span class="keyword">to</span> c18cee</div><div class="line">    --- <span class="keyword">c</span>:\inetpub\wwwroot\<span class="built_in">index</span>.htm    <span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span> <span class="number">15</span>:<span class="number">45</span>:<span class="number">07.000000000</span> +<span class="number">0800</span></div><div class="line">    +++ <span class="keyword">c</span>:\inetpub\wwwroot/chef-<span class="built_in">index</span>.htm20160909-<span class="number">1312</span>-gj1hsq   <span class="number">2016</span>-<span class="number">09</span>-<span class="number">09</span> <span class="number">15</span>:<span class="number">45</span>:<span class="number">07.000000000</span> +<span class="number">0800</span></div><div class="line">    @@ -<span class="number">1</span> +<span class="number">1</span>,<span class="number">6</span> @@</div><div class="line">    +<span class="symbol">&lt;html&gt;</span></div><div class="line">    +   <span class="symbol">&lt;body&gt;</span></div><div class="line">    +           <span class="symbol">&lt;h1&gt;</span>hello, chef.&lt;/h1&gt;</div><div class="line">    +   &lt;/body&gt;</div><div class="line">    +&lt;/html&gt;</div><div class="line"></div><div class="line">Running handler<span class="variable">s:</span></div><div class="line">Running handlers <span class="built_in">complete</span></div><div class="line">Chef Client finished, <span class="number">1</span>/<span class="number">4</span> resources updated in <span class="number">16</span> seconds</div></pre></td></tr></table></figure></p>
+<p>一个cookbook可以包含一个或多个recipe，可指定运行其中的一个，如：recipe[learn_chef_iis::default]。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p>[1] <a href="https://learn.chef.io/tutorials/learn-the-basics/windows/bring-your-own-system/" target="_blank" rel="external">Learn the Chef Basics</a></p>
+<p>[2] <a href="http://www.ibm.com/developerworks/cn/cloud/library/1504_wangqw_chefcookbook/index.html" target="_blank" rel="external">Chef框架之Cookbook的介绍及应用</a></p>
+<p>[3] <a href="http://www.cnblogs.com/shitoufengkuang/p/4825401.html" target="_blank" rel="external">使用Chef管理windows集群</a></p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;1-Chef概述&quot;&gt;&lt;a href=&quot;#1-Chef概述&quot; class=&quot;headerlink&quot; title=&quot;1.Chef概述&quot;&gt;&lt;/a&gt;1.Chef概述&lt;/h2&gt;&lt;p&gt;Chef是一款自动化服务器配置管理工具，可以对所管理的对象实行自动化配置，如系统管理，安装软
+    
+    </summary>
+    
+      <category term="地理平台" scheme="http://xinligis.github.io/categories/%E5%9C%B0%E7%90%86%E5%B9%B3%E5%8F%B0/"/>
+    
+    
+      <category term="ArcGIS,Chef,自动化部署" scheme="http://xinligis.github.io/tags/ArcGIS-Chef-%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>ArcGIS自动化部署实践之二：Chef生产环境测试</title>
+    <link href="http://xinligis.github.io/2016/09/08/20160909-AGS10.4.x-ArcGIS%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2%E5%AE%9E%E8%B7%B5%E4%B9%8B%E4%BA%8C%EF%BC%9AChef%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E6%B5%8B%E8%AF%95/"/>
+    <id>http://xinligis.github.io/2016/09/08/20160909-AGS10.4.x-ArcGIS自动化部署实践之二：Chef生产环境测试/</id>
+    <published>2016-09-07T16:00:00.000Z</published>
+    <updated>2016-10-10T07:54:44.021Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1.概述"></a>1.概述</h2><p>Chef包含三大组件：<code>Chef Server</code>、<code>Chef Workstation</code>和<code>Chef Node</code>。本次测试需要两台Windows机器，一台用于部署workstation，一台部署node，Server机器则使用在线资源。</p>
+<h2 id="2-搭建Chef-Workstation环境"><a href="#2-搭建Chef-Workstation环境" class="headerlink" title="2.搭建Chef Workstation环境"></a>2.搭建Chef Workstation环境</h2><h3 id="2-1-软件"><a href="#2-1-软件" class="headerlink" title="2.1 软件"></a>2.1 软件</h3><ul>
+<li>Windows Server 2012 R2</li>
+<li>Chef Development Kit 0.17.17</li>
+<li>knife-windows插件</li>
+</ul>
+<blockquote>
+<p>knife-windows插件包含在Chef DK中，但还是建议安装最新版本，安装可使用命令：<code>chef gem install knife-windows</code></p>
+</blockquote>
+<h3 id="2-2-安装chef-DK软件"><a href="#2-2-安装chef-DK软件" class="headerlink" title="2.2 安装chef DK软件"></a>2.2 安装chef DK软件</h3><p>安装过程略。</p>
+<h3 id="2-3-创建工作目录"><a href="#2-3-创建工作目录" class="headerlink" title="2.3 创建工作目录"></a>2.3 创建工作目录</h3><p><code>mkdir learn-chef</code></p>
+<p><code>cd learn-chef</code></p>
+<h2 id="3-搭建Chef-Server环境"><a href="#3-搭建Chef-Server环境" class="headerlink" title="3.搭建Chef Server环境"></a>3.搭建Chef Server环境</h2><p>Chef提供了在线的Chef Server主机，为方便测试直接使用在线主机，当然也可以部署自己的Chef Server主机，部署步骤见<a href="https://learn.chef.io/install-and-manage-your-own-chef-server/" target="_blank" rel="external">安装自己的chef Server</a></p>
+<h3 id="3-1-注册Chef"><a href="#3-1-注册Chef" class="headerlink" title="3.1 注册Chef"></a>3.1 注册Chef</h3><p><a href="https://manage.chef.io/signup/" target="_blank" rel="external">注册Chef</a> </p>
+<h3 id="3-2-配置workstation访问Chef-Server"><a href="#3-2-配置workstation访问Chef-Server" class="headerlink" title="3.2 配置workstation访问Chef Server"></a>3.2 配置workstation访问Chef Server</h3><p>在workstation上访问Chef Server使用knife命令，该命令访问Server时，需要两个配置文件：RAS key文件和配置文件。</p>
+<ol>
+<li>在工作目录下创建.chef文件夹lear-chef/.chef。</li>
+</ol>
+<p><code>mkdir learn-chef/.chef</code></p>
+<ol>
+<li>登录<a href="https://manage.chef.io" target="_blank" rel="external">chef manager</a>，在<strong>Administration</strong>下选择组织，再选择<strong>Generate Knife Config</strong>即可创建<code>knife.rb</code>配置文件。将该文件保存在.chef目录下。</li>
+</ol>
+<p><img src="http://od0gjyiqq.bkt.clouddn.com/20160909-chef-knifekey-20161010.png" alt="Generate Knife Config"></p>
+<ol>
+<li>再选择<strong>Users</strong>–&gt;<strong>Reset Key</strong>，在弹出框中继续选择<strong>Reset Key</strong>，并将内容下载下来，最后保存到.chef目录中。</li>
+</ol>
+<p><img src="http://od0gjyiqq.bkt.clouddn.com/20160909-chef-manage-20161010.png" alt="Knife key"></p>
+<h3 id="3-4-测试与Chef-Server的连接"><a href="#3-4-测试与Chef-Server的连接" class="headerlink" title="3.4 测试与Chef Server的连接"></a>3.4 测试与Chef Server的连接</h3><p><code>knife ssl check</code></p>
+<h3 id="3-5-从Chef-Server下载cookbook"><a href="#3-5-从Chef-Server下载cookbook" class="headerlink" title="3.5 从Chef Server下载cookbook"></a>3.5 从Chef Server下载cookbook</h3><ol>
+<li>在工作目录learn-chef下创建cookbooks目录。</li>
+</ol>
+<p><code>mkdir cookbooks</code></p>
+<ol>
+<li>下载IIS cookbook并解压</li>
+</ol>
+<p><code>knife cookbook site download learn_chef_iis</code></p>
+<p><code>tar -zxvf learn_chef_iis-0.2.1.tar.gz -C cookbooks</code></p>
+<h3 id="3-6-上传cookbook到Chef-Server"><a href="#3-6-上传cookbook到Chef-Server" class="headerlink" title="3.6 上传cookbook到Chef Server"></a>3.6 上传cookbook到Chef Server</h3><p><code>knife cookbook upload learn_chef_iis</code></p>
+<h2 id="4-自动部署Node节点机器"><a href="#4-自动部署Node节点机器" class="headerlink" title="4.自动部署Node节点机器"></a>4.自动部署Node节点机器</h2><h3 id="4-1-Node节点机器要求"><a href="#4-1-Node节点机器要求" class="headerlink" title="4.1 Node节点机器要求"></a>4.1 Node节点机器要求</h3><ul>
+<li>安装Chef Client组件。</li>
+<li>开放80、5985(WinRM)进站端口。</li>
+<li>开放443出站端口。</li>
+<li>workstation机器也需要开放80、443、5985出站端口。<h3 id="4-2-测试连接Node节点机器"><a href="#4-2-测试连接Node节点机器" class="headerlink" title="4.2 测试连接Node节点机器"></a>4.2 测试连接Node节点机器</h3>在workstation机器上，使用如下命令测试连接node机器：</li>
+</ul>
+<p><code>knife wsman test IP --manual-list</code></p>
+<h3 id="4-3-远程配置Node节点机器"><a href="#4-3-远程配置Node节点机器" class="headerlink" title="4.3 远程配置Node节点机器"></a>4.3 远程配置Node节点机器</h3><p>在workstation机器上，先进入工作目录：</p>
+<p><code>cd learn-chef</code></p>
+<p>再执行如下命令启动远程配置node机器：</p>
+<p><code>knife bootstrap windows winrm</code> <strong>IP</strong> <code>--winrm-user</code> <strong>user</strong> <code>--winrm-password</code> <strong>‘PASSWORD’</strong> <code>--node-name node1 --run-list &#39;recipe[learn_chef_iis]&#39;</code></p>
+<p><em>IP：</em> Node机器的IP地址</p>
+<p><em>user：</em> Node机器管理员账号</p>
+<p><em>password：</em> Node机器管理员密码</p>
+<p><em>node1:</em> 自定义节点名称</p>
+<h3 id="4-4-测试远程配置结果"><a href="#4-4-测试远程配置结果" class="headerlink" title="4.4 测试远程配置结果"></a>4.4 测试远程配置结果</h3><ol>
+<li>登陆chef manage，检查nodes情况</li>
+</ol>
+<p>或者使用命令：<code>knife node list</code> 和 <code>knife node show node1</code></p>
+<ol>
+<li>浏览器中输入测试页面访问情况</li>
+</ol>
+<p><code>http://ip/default.htm</code></p>
+<h2 id="5-更新配置并重新运行"><a href="#5-更新配置并重新运行" class="headerlink" title="5.更新配置并重新运行"></a>5.更新配置并重新运行</h2><p>在workstation上更新配置文件内容后，再重新执行：</p>
+<ol>
+<li>修改template下面的模板文件内容，如更改输出内容。</li>
+<li>上传新的cookbook到chef server：</li>
+</ol>
+<p><code>knife cookbook upload learn_chef_iis</code></p>
+<ol>
+<li>重新执行新的cookbook</li>
+</ol>
+<p><code>knife winrm</code> <strong>IP</strong> <code>chef-client --manual-list --winrm-user</code> <strong>USER</strong> <code>--winrm-password</code> <strong>‘PASSWORD’</strong> <code> </code></p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p>[1] <a href="https://learn.chef.io/manage-a-node/windows" target="_blank" rel="external">Manage a Node</a></p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;1-概述&quot;&gt;&lt;a href=&quot;#1-概述&quot; class=&quot;headerlink&quot; title=&quot;1.概述&quot;&gt;&lt;/a&gt;1.概述&lt;/h2&gt;&lt;p&gt;Chef包含三大组件：&lt;code&gt;Chef Server&lt;/code&gt;、&lt;code&gt;Chef Workstation&lt;/co
+    
+    </summary>
+    
+      <category term="地理平台" scheme="http://xinligis.github.io/categories/%E5%9C%B0%E7%90%86%E5%B9%B3%E5%8F%B0/"/>
+    
+    
+      <category term="ArcGIS,Chef,自动化部署" scheme="http://xinligis.github.io/tags/ArcGIS-Chef-%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>ArcGIS自动化部署实践之三：PowerShell命令入门</title>
+    <link href="http://xinligis.github.io/2016/09/08/20160919-AGS10.4.x-ArcGIS%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2%E5%AE%9E%E8%B7%B5%E4%B9%8B%E4%B8%89%EF%BC%9APowershell%E5%91%BD%E4%BB%A4%E5%85%A5%E9%97%A8/"/>
+    <id>http://xinligis.github.io/2016/09/08/20160919-AGS10.4.x-ArcGIS自动化部署实践之三：Powershell命令入门/</id>
+    <published>2016-09-07T16:00:00.000Z</published>
+    <updated>2016-10-10T07:57:43.884Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="1-简介"><a href="#1-简介" class="headerlink" title="1.简介"></a>1.简介</h2><p>PowerShell是微软推出的命令行脚本工具。它除了包含大量命令供使用外，还可以调用.NET Framework的类库，功能远远超出了批处理命令，可以作为强大的运维管理工具。现在PowerShell除了跑在windows上，也可以跑在linux上。</p>
+<h2 id="2-交互式"><a href="#2-交互式" class="headerlink" title="2.交互式"></a>2.交互式</h2><h3 id="2-1-运算符"><a href="#2-1-运算符" class="headerlink" title="2.1 运算符"></a>2.1 运算符</h3><p><code>+(加) -(减) *(乘) /(除)</code></p>
+<h3 id="2-2-执行外部命令"><a href="#2-2-执行外部命令" class="headerlink" title="2.2 执行外部命令"></a>2.2 执行外部命令</h3><p>powershell中可以执行外部的命令，如：（不只限下表命令）<br>|外部命令|说明|<br>|—|—|<br>|netstat|查端口信息|<br>|ipconfig|查网络配置|<br>|cmd|启动cmd，退出使用exit|<br>|cmd /c help|查cmd的命令|<br>|notepad|打开记事本|</p>
+<h3 id="2-3-cmdlets命令集"><a href="#2-3-cmdlets命令集" class="headerlink" title="2.3 cmdlets命令集"></a>2.3 cmdlets命令集</h3><p>详见<a href="https://technet.microsoft.com/en-us/library/bb978526.aspx" target="_blank" rel="external">微软帮助</a>。</p>
+<h3 id="2-4-别名"><a href="#2-4-别名" class="headerlink" title="2.4 别名"></a>2.4 别名</h3><p>cmdlets的名称由一个动词和名称组成，为方便交互命令输入，可使用别名。</p>
+<ol>
+<li>查询别名所指的真实cmdlet命令</li>
+</ol>
+<p><code>ps c:\&gt;Get-Alias -name ls</code></p>
+<ol>
+<li>查看可用的别名<br>查看所有可用的别名以及别名个数。</li>
+</ol>
+<p><code>ps c:\&gt;ls alias: | Group-Object definition | sort -Descending Count</code></p>
+<ol>
+<li>创建和删除自己的别名<br>创建notepad的别名：</li>
+</ol>
+<p><code>ps c:\&gt;Set-Alias -Name Edit -Value notepad</code></p>
+<p>手动删除：(关闭命令会自动删除)</p>
+<p><code>ps c:\&gt;del alias:Edit</code></p>
+<h2 id="3-变量"><a href="#3-变量" class="headerlink" title="3.变量"></a>3.变量</h2><h3 id="3-1-定义变量"><a href="#3-1-定义变量" class="headerlink" title="3.1 定义变量"></a>3.1 定义变量</h3><p>使用<code>$</code>符号开头定义变量前缀。变量名支持数字、字母、下划线，不区分大小写。</p>
+<p><code>ps c:\&gt;$item=test</code></p>
+<h3 id="3-2-自动化变量"><a href="#3-2-自动化变量" class="headerlink" title="3.2 自动化变量"></a>3.2 自动化变量</h3><p>系统内置变量，用来存放用户信息、配置信息、运行时信息。如：<code>$Home、$Args、$Error</code>等。</p>
+<h3 id="3-3-环境变量"><a href="#3-3-环境变量" class="headerlink" title="3.3 环境变量"></a>3.3 环境变量</h3><p>查看所有的环境变量：<code>ls env:</code></p>
+<p>创建和删除环境变量：</p>
+<p><code>#env:TestVal1=&quot;new variable&quot;</code></p>
+<p><code>del env:windir</code></p>
+<p><em>注：$env是系统环境变量的副本，更改它不会真的修改系统的环境变量。如果调用.NET的方法则会更改。</em></p>
+<h3 id="3-4-驱动器变量"><a href="#3-4-驱动器变量" class="headerlink" title="3.4 驱动器变量"></a>3.4 驱动器变量</h3><p>所有不是自定义的变量都是驱动器变量。</p>
+<p>直接访问文件路径：(由于文件路径中包含有:等特殊符号，需要用大括号)<br><code>${c:/powershell/1.txt}</code></p>
+<p>对于路径中使用了驱动器变量的文件路径，需要在前面加上 ` 反引号。</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">Invoke-Expression <span class="string">" `<span class="subst">$&#123;$env:HOMEDRIVE/Powershell/ping.bat&#125;</span>"</span></div></pre></td></tr></table></figure>
+<h3 id="3-5-变量作用域"><a href="#3-5-变量作用域" class="headerlink" title="3.5 变量作用域"></a>3.5 变量作用域</h3><p>$global（全局）、$script（脚本）、$private（私有）、$local（默认）</p>
+<p>声明方式：</p>
+<p><code>ps&gt;$logo=&quot;this is test.&quot;</code></p>
+<p><code>ps&gt;$script:logo</code></p>
+<h3 id="3-6-变量的类型"><a href="#3-6-变量的类型" class="headerlink" title="3.6 变量的类型"></a>3.6 变量的类型</h3><p>类型与强类型</p>
+<h2 id="4-数组"><a href="#4-数组" class="headerlink" title="4 数组"></a>4 数组</h2><p>powershell返回的值以数组记录。</p>
+<h3 id="4-1-创建数组"><a href="#4-1-创建数组" class="headerlink" title="4.1 创建数组"></a>4.1 创建数组</h3><p><code>ps&gt;$num=2,3,1,2</code></p>
+<p>连续数字：<code>ps&gt;$nums=1..5</code></p>
+<p>存储不同类型数据：<code>ps&gt;$nums=1,&quot;类型&quot;,(get-date)</code></p>
+<p>空数组：<code>ps&gt;$nums=@()</code></p>
+<p>另一种声明：<code>ps&gt;$nums=@(1,2,3)</code></p>
+<h3 id="4-2-使用数组"><a href="#4-2-使用数组" class="headerlink" title="4.2 使用数组"></a>4.2 使用数组</h3><p>按索引号读取：<code>ps&gt;$nums[0]</code></p>
+<p>数组大小：<code>ps&gt;$nums.Count</code></p>
+<p>增加新项：<code>ps&gt;$nums+=&quot;元素3&quot;</code></p>
+<h3 id="4-3-复制数组"><a href="#4-3-复制数组" class="headerlink" title="4.3 复制数组"></a>4.3 复制数组</h3><p>引用赋值：<br><figure class="highlight smalltalk"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">ps&gt;<span class="string">$c</span>hs=<span class="comment">"a"</span>,<span class="comment">"b"</span>,<span class="comment">"c"</span></div><div class="line">ps&gt;<span class="string">$c</span>hsbak=<span class="string">$c</span>hs</div></pre></td></tr></table></figure></p>
+<p>完全复制：<code>ps&gt;$chsbak=$chs.Clone()</code></p>
+<h3 id="4-4-键值对"><a href="#4-4-键值对" class="headerlink" title="4.4 键值对"></a>4.4 键值对</h3><p><code>ps&gt;$stu=@{name=&quot;xinli&quot;;age=12;address=&quot;gz&quot;}</code></p>
+<h2 id="5-管道"><a href="#5-管道" class="headerlink" title="5. 管道"></a>5. 管道</h2><h3 id="5-1-重定向"><a href="#5-1-重定向" class="headerlink" title="5.1 重定向"></a>5.1 重定向</h3><p><code>&gt;</code> 覆盖，<code>&gt;&gt;</code> 追加<br><figure class="highlight stylus"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">ps c:\&gt;<span class="string">"this is test."</span> &gt; hello<span class="selector-class">.txt</span></div><div class="line">ps c:\&gt;<span class="string">"this is test2."</span> &gt; hello<span class="selector-class">.txt</span></div><div class="line">ps c:\&gt;Get-Content hello.txt</div></pre></td></tr></table></figure></p>
+<h2 id="6-获取帮助信息"><a href="#6-获取帮助信息" class="headerlink" title="6.获取帮助信息"></a>6.获取帮助信息</h2><p>Get-Help、help、man</p>
+<h2 id="7-获取命令详细信息"><a href="#7-获取命令详细信息" class="headerlink" title="7.获取命令详细信息"></a>7.获取命令详细信息</h2><p>Get-Command</p>
+<p>示例： <code>Get-Command *-Service</code></p>
+<p>查命令的详细参数信息：<br><code>Get-Command -Name Get_Service -Syntax</code></p>
+<p>查询命令的所有属性和方法说明，使用Get-Member</p>
+<p><code>PS&gt; Get-Service | Get-Member</code></p>
+<p>查询变量的详细信息：<br><code>PS&gt; $loc | Get-Member -MemberType Property</code></p>
+<h2 id="8-使用系统环境变量：使用-evn-开头"><a href="#8-使用系统环境变量：使用-evn-开头" class="headerlink" title="8.使用系统环境变量：使用$evn:开头"></a>8.使用系统环境变量：使用$evn:开头</h2><p>PS&gt; $env:SystemRoot</p>
+<h2 id="9-Get-WmiObject"><a href="#9-Get-WmiObject" class="headerlink" title="9.Get-WmiObject"></a>9.Get-WmiObject</h2><ul>
+<li>查询所有的WMI类：<code>Get-WmiObject -List</code></li>
+<li>查询类的详细信息：<code>Get-WmiObject -class Win32_OperatingSystem -ComputerName .| Get-Member</code></li>
+</ul>
+<ol>
+<li>计算机重启、关机操作</li>
+</ol>
+<p><code>(Get-WmiObject -Class Win32_OperatingSystem -ComputerName .).Win32Shutdown(0)</code></p>
+<p>标识0：注销</p>
+<p>标识1：关闭</p>
+<p>标识2：重启</p>
+<p>ComputerName参数指定点值，表示本地计算机。</p>
+<ol>
+<li>查询计算机相关信息</li>
+</ol>
+<p><code>Get-WmiObject -Class Win32_Desktop -ComputerName .</code></p>
+<table>
+<thead>
+<tr>
+<th>接口类</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Win32_Desktop</td>
+<td>返回桌面信息</td>
+</tr>
+<tr>
+<td>Win32_BIOS</td>
+<td>返回BIOS信息</td>
+</tr>
+<tr>
+<td>Win32_Processor</td>
+<td>返回处理器信息</td>
+</tr>
+<tr>
+<td>Win32_ComputerSystem</td>
+<td>返回计算机制造商信息</td>
+</tr>
+<tr>
+<td>Win32_OperatingSystem</td>
+<td>操作系统信息</td>
+</tr>
+</tbody>
+</table>
+<h2 id="10-进程管理"><a href="#10-进程管理" class="headerlink" title="10.进程管理"></a>10.进程管理</h2><p>查进程(按进程ID或者名称)：<code>Get-Process -id 0</code>或者<code>Get-Process -Name ArcSOC*</code></p>
+<p>停止进程：<code>Stop-Process -Name Google*</code></p>
+<h2 id="11-服务管理"><a href="#11-服务管理" class="headerlink" title="11.服务管理"></a>11.服务管理</h2><p>查服务信息（按服务名）：<code>Get-Service -Name sde*</code></p>
+<p>查服务信息（按服务显示名）: <code>Get-Service -DisplayName se*</code></p>
+<p>停止服务：<code>Stop-Service -Name spooler</code></p>
+<p>启动服务：<code>Start-Service -Name spooler</code></p>
+<p>暂停服务：<code>Suspend-Service -Name spooler</code></p>
+<p>重启服务：<code>Restart-Service -Name spooler</code></p>
+<h2 id="12-驱动器管理"><a href="#12-驱动器管理" class="headerlink" title="12.驱动器管理"></a>12.驱动器管理</h2><p>Get-PSDriver</p>
+<p>文件系统驱动器（c:）</p>
+<p>注册表驱动器（HKCU:和HKLM:）</p>
+<p>证书驱动器（Cert:）</p>
+<h2 id="13-当前路径管理"><a href="#13-当前路径管理" class="headerlink" title="13.当前路径管理"></a>13.当前路径管理</h2><p>获取当前路径：<code>Get-Location</code></p>
+<p>设置当前路径：<code>Set-Location</code></p>
+<p><em>相对路径的标准表示法中，句点 (.) 表示当前文件夹，而双句点 (..) 表示当前位置的父目录。</em></p>
+<h2 id="14-item操作"><a href="#14-item操作" class="headerlink" title="14.item操作"></a>14.item操作</h2><p>Item指文件、文件夹、注册表项等。</p>
+<p>cmdlet中提供了9个可用的item操作命令：查询可用的item命令</p>
+<p><code>Get-Command Noun Item</code></p>
+<ol>
+<li><p>创建新项<br><code>New-Item -Path c:\New.Dir -ItemType Directory</code></p>
+</li>
+<li><p>重命名项<br><code>Rename-Item -Path c:\New.Dir c:\newfile</code></p>
+</li>
+<li><p>移动项<br><code>Move-Item -Path c:\newfile -Destination c:\automate</code></p>
+</li>
+<li><p>复制项(只复制文件夹)<br><code>Copy-Item -Path c:\newfile -Destination c:\automate</code></p>
+</li>
+</ol>
+<p>复制所有内容：</p>
+<p><code>Copy-Item -Path C:\New.Directory -Destination C:\temp -Recurse -Force</code></p>
+<h2 id="15-网络操作"><a href="#15-网络操作" class="headerlink" title="15.网络操作"></a>15.网络操作</h2><ol>
+<li><p>查IP地址<br><code>Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPEnabled=TRUE -ComputerName . | Format-Table -Property IPAddress</code></p>
+</li>
+<li><p>Ping操作：<code>Win32_PingStatus</code></p>
+</li>
+<li>创建网络共享：<code>(Get-WmiObject -List -ComputerName . | Where-Object -FilterScript {$_.Name -eq &quot;Win32_Share&quot;}).Create(&quot;C:\temp&quot;,&quot;TempShare&quot;,0,25,&quot;test share of the temp folder&quot;)</code></li>
+</ol>
+<p><em>注：Create()方法是Win32_Share类的静态方法，需要使用类来调用，示例中的()内容是通过list来查询来获取WMI类</em></p>
+<h2 id="16-Out重定向"><a href="#16-Out重定向" class="headerlink" title="16.Out重定向"></a>16.Out重定向</h2><p>Out-Host 输出成文本，方便控制台输出。</p>
+<p><code>Get-Process | Out-Host -Paging | Format-List</code></p>
+<p>Out-File保存到文件。</p>
+<p><code>Get-Process | Out-File -FilePath c:\pslist.txt</code></p>
+<h2 id="17-Where-Object过滤操作"><a href="#17-Where-Object过滤操作" class="headerlink" title="17.Where-Object过滤操作"></a>17.Where-Object过滤操作</h2><p><code>Where-Object FilterScript {}</code></p>
+<p>过滤条件中的比较运算符<br>|运算符|说明|<br>|—|—-|<br>|-eq|等于|<br>|-ne|不等于|<br>|-lt|小于|<br>|-le|小于等于|<br>|-gt|大于|<br>|-ge|大于等于|<br>|-like|相似|<br>|-notlike|不相似|<br>|-contains|包含|<br>|-notcontains|不包含|<br>|-and|与操作|<br>|-or|或操作|<br>|-not|取反|<br>|!|取反|</p>
+<p><code>$_</code>:表示当前对象。</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">Get-WmiObject</span> -Class Win32_SystemDriver | <span class="built_in">Where-Object</span> -FilterScript &#123;<span class="variable">$_</span>.State <span class="nomarkup">-eq</span> <span class="string">"Running"</span>&#125;</div></pre></td></tr></table></figure>
+<h2 id="18-ForEach-Object循环操作"><a href="#18-ForEach-Object循环操作" class="headerlink" title="18.ForEach-Object循环操作"></a>18.ForEach-Object循环操作</h2><p><code>Get-WmiObject -Class Win32_LogicalDisk | ForEach-Object -Process {$_.FreeSpace/1024.0/1024.0}</code></p>
+<h2 id="19-Select-Object选择操作"><a href="#19-Select-Object选择操作" class="headerlink" title="19.Select-Object选择操作"></a>19.Select-Object选择操作</h2><p>可使用Select-Object创建新对象。<br><code>Get-WmiObject -Class Win32_LogicalDisk | Select-Object -Property Name,FreeSpace</code></p>
+<p>可通过Select-Object创建新对象，然后根据需要修改对象的信息。</p>
+<h2 id="20-Sort-Object排序操作"><a href="#20-Sort-Object排序操作" class="headerlink" title="20.Sort-Object排序操作"></a>20.Sort-Object排序操作</h2><p><code>Get-WmiObject -Class Win32_SystemDriver | Sort-Object -Property State,Name</code></p>
+<h2 id="21-Format-格式化操作"><a href="#21-Format-格式化操作" class="headerlink" title="21.Format-*格式化操作"></a>21.Format-*格式化操作</h2><ol>
+<li><code>Format-Wide</code></li>
+</ol>
+<p>示例：<br><code>Get-Process -Name powershell | Format-Wide -Property Id</code></p>
+<ol>
+<li><code>Format-List</code></li>
+</ol>
+<p>示例：<br><code>Get-Process -Name powershell | Format-List</code></p>
+<ol>
+<li><code>Format-Table</code></li>
+</ol>
+<p>示例：<br><code>Get-Process -Name powershell | Format-Table -Property Path,Name,Id,Company</code></p>
+<h2 id="22-使用静态类和方法"><a href="#22-使用静态类和方法" class="headerlink" title="22.使用静态类和方法"></a>22.使用静态类和方法</h2><p>通过使用方括号将类名称括起来以引用静态类。如：<code>PS&gt; [System.Environment]</code></p>
+<p>通过使用::来使用类的静态属性或方法。如：<code>PS&gt; [System.Environment]::CommanLine</code></p>
+<p>System.Math类：<code>[System.Math]::Sqrt(9)</code></p>
+<h2 id="23-Get-ChildItem操作"><a href="#23-Get-ChildItem操作" class="headerlink" title="23.Get-ChildItem操作"></a>23.Get-ChildItem操作</h2><p>枚举文件夹内容：<code>Get-ChildItem -Path c:\Windows</code></p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>-Recurse</td>
+<td>列出所有项</td>
+</tr>
+<tr>
+<td>-Name</td>
+<td>只显示名称</td>
+</tr>
+<tr>
+<td>-Force</td>
+<td>显示隐藏项</td>
+</tr>
+<tr>
+<td>-Exclude</td>
+<td>排除项</td>
+</tr>
+</tbody>
+</table>
+<p>路径参数支持：*、？、[]正则表达式</p>
+<h2 id="24-Get-Content操作"><a href="#24-Get-Content操作" class="headerlink" title="24.Get-Content操作"></a>24.Get-Content操作</h2><p>用于读取文件内容。<br><code>Get-Content -Path C:\temp\DomainMembers.txt</code></p>
+<h2 id="25-注册表条目操作"><a href="#25-注册表条目操作" class="headerlink" title="25.注册表条目操作"></a>25.注册表条目操作</h2><p>列出注册表条目：<br><code>PS&gt; Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion</code></p>
+<p>查看单个注册表项：<br><code>PS&gt; Get-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion -Name DevicePath</code></p>
+<p>或者使用WshShell COM对象查询：<code>(New-Object -ComObject WScript.Shell).RegRead(&quot;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\DevicePath&quot;)</code></p>
+<h2 id="26-软件安装"><a href="#26-软件安装" class="headerlink" title="26.软件安装"></a>26.软件安装</h2><p>只针对使用Windows Install的应用程序。</p>
+<p>列出安装的应用程序：<code>Get-WmiObject -Class Win32_Product -ComputerName .</code></p>
+<p>安装应用程序：<code>(Get-WmiObject -List -ComputerName .| Where-Object -FilterScript {$_.Name -eq &quot;Win32_Product&quot;}).Install(c:\dsp\newpack.msi)</code></p>
+<h2 id="27-函数定义"><a href="#27-函数定义" class="headerlink" title="27.函数定义"></a>27.函数定义</h2><ol>
+<li><p>函数定义格式如下：</p>
+<figure class="highlight actionscript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">funcName</span><span class="params">(args[])</span></span></div><div class="line">&#123;</div><div class="line">    code    </div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>函数的返回值</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">Square</span><span class="params">([double]$num)</span></span></div><div class="line">&#123;</div><div class="line">    <span class="keyword">return</span> $num*$num</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>调用方法：<code>ps&gt; Square 9.8</code></p>
+<p>返回多个值：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">function</span> gbMeasure(<span class="variable">$amount</span>)</div><div class="line">&#123;</div><div class="line">    <span class="string">"<span class="variable">$amount</span> GB=<span class="variable">$($amount)</span> GB"</span></div><div class="line">    <span class="string">"<span class="variable">$amount</span> GB=<span class="variable">$($amount*1gb/1mb)</span> MB"</span></div><div class="line">    <span class="string">"<span class="variable">$amount</span> GB=<span class="variable">$($amount*1gb/1kb)</span> KB"</span></div><div class="line">    <span class="string">"<span class="variable">$amount</span> GB=<span class="variable">$($amount*1gb)</span> B"</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>调用方法：<br><figure class="highlight applescript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">ps&gt;$<span class="literal">result</span>=gbMeasure <span class="number">1</span></div><div class="line">ps&gt;$<span class="literal">result</span></div></pre></td></tr></table></figure></p>
+<p><em>返回值是多个时，记录在数组中，可通过数组方式访问结果。</em></p>
+<ol>
+<li>调试信息与错误信息</li>
+</ol>
+<p>使用Wirte-Debug命令输出调试信息，只有调试模式下才显示。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">Function</span> <span class="title">Test</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">    Write-Debug <span class="string">"Try to calculate."</span></div><div class="line">    <span class="string">"3.1415926"</span></div><div class="line">    Write-Debug <span class="string">"Done."</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>调试模式打开与关闭：<br><figure class="highlight autoit"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$DebugPreference=<span class="string">"Continue"</span></div><div class="line">$DebugPreference=<span class="string">"SilentlyContinue"</span></div></pre></td></tr></table></figure></p>
+<h2 id="28-脚本文件（-ps1）"><a href="#28-脚本文件（-ps1）" class="headerlink" title="28.脚本文件（.ps1）"></a>28.脚本文件（.ps1）</h2><h3 id="28-1-脚本概述"><a href="#28-1-脚本概述" class="headerlink" title="28.1. 脚本概述"></a>28.1. 脚本概述</h3><p>对于需要重复执行的命令，可以定义在脚本文件中。与cmd的批处理文件类似。</p>
+<p>test.ps1的内容：<br><figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="variable">$ps</span> = <span class="built_in">Get-Process</span> | <span class="built_in">Where-Object</span> -FilterScript &#123;<span class="variable">$_</span>.Name <span class="nomarkup">-like</span> <span class="string">"W*"</span>&#125;</div><div class="line"><span class="variable">$ps</span>.GetType().Name</div><div class="line"><span class="variable">$ps</span>[<span class="number">1</span>]</div></pre></td></tr></table></figure></p>
+<h3 id="28-2-脚本执行"><a href="#28-2-脚本执行" class="headerlink" title="28.2.脚本执行"></a>28.2.脚本执行</h3><p>需要使用相对路径或者绝对路径：<br><figure class="highlight taggerscript"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">ps e:<span class="symbol">\&gt;</span>.<span class="symbol">\t</span>ext.ps1</div></pre></td></tr></table></figure></p>
+<p>注：脚本只能管理员才能执行，可通过<code>Get-ExecutionPolicy</code>查看执行策略，通过<code>Set-ExecutionPolicy</code>设置，可设置的值有：</p>
+<p>Unrestricted:权限最高，可以不受限制执行任何脚本。</p>
+<p>Default:为Powershell默认的策略：Restricted，不允许任何脚本执行。</p>
+<p>AllSigned：所有脚本都必须经过签名才能在运行。</p>
+<p>RemoteSigned：本地脚本无限制，但是对来自网络的脚本必须经过签名。</p>
+<h3 id="28-3-脚本参数"><a href="#28-3-脚本参数" class="headerlink" title="28.3.脚本参数"></a>28.3.脚本参数</h3><p>脚本文件可接收外部参数，使用$args变量。</p>
+<p>如果需要接收的参数比较多，且有顺序要求，建议为参数指定名称，如脚本文件内容：<br><figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">param</span>(<span class="variable">$Directory</span>,<span class="variable">$FileName</span>)</div><div class="line"> </div><div class="line"><span class="string">"Directory= <span class="variable">$Directory</span>"</span></div><div class="line"><span class="string">"FileName=<span class="variable">$FileName</span>"</span></div></pre></td></tr></table></figure></p>
+<p>执行脚本：<code>ps e:/&gt; .\test.ps1 -Directory $env:windir -FileName config.xml</code></p>
+<p>还可以增加参数验证，如：<br><figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">param</span>(</div><div class="line">[string]<span class="variable">$Name</span>=$(<span class="keyword">throw</span> <span class="string">"Parameter missing: -name Name"</span>) ,</div><div class="line">[int]<span class="variable">$Age</span>=$(<span class="keyword">throw</span> <span class="string">"Parameter missing: -age x as number"</span>)</div><div class="line">)</div><div class="line"> </div><div class="line"><span class="string">"Name= <span class="variable">$Name</span>"</span></div><div class="line"><span class="string">"Age=<span class="variable">$Age</span>"</span></div></pre></td></tr></table></figure></p>
+<h2 id="29-其他"><a href="#29-其他" class="headerlink" title="29.其他"></a>29.其他</h2><h3 id="29-1-注释"><a href="#29-1-注释" class="headerlink" title="29.1.注释"></a>29.1.注释</h3><p><strong>行注释</strong>：# 这是行注释</p>
+<p><strong>块注释</strong>：&lt;# 这是块注释 #&gt;</p>
+<h3 id="29-2-输出控制台并写入文件"><a href="#29-2-输出控制台并写入文件" class="headerlink" title="29.2.输出控制台并写入文件"></a>29.2.输出控制台并写入文件</h3><p><code>Write-Host</code>会输出控制台，但不会写文件。</p>
+<p><code>Write-Output</code>会写文件，但不会输出控制台。</p>
+<p><code>Write-Output hello | out-file -filepath C:\temp\a.txt</code></p>
+<h3 id="29-3-查询PS版本"><a href="#29-3-查询PS版本" class="headerlink" title="29.3.查询PS版本"></a>29.3.查询PS版本</h3><p><code>$PSVersionTable.PSVersion</code></p>
+<h3 id="29-4-引号"><a href="#29-4-引号" class="headerlink" title="29.4.引号"></a>29.4.引号</h3><p>单引号任何情况下都只表示引号内自身的字符。也就是说，单引号内的内容不会进行变量的代换与字符的转义。而在双引号中，则允许进行变量代换和字符转义。在对变量进行代换和字符进行转义的判断上，是由命令最外层的引号决定的。</p>
+<p>使用双引号输出：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="variable">$a</span>=<span class="string">"World"</span> </div><div class="line"><span class="string">"Hello, <span class="variable">$a</span>"</span></div></pre></td></tr></table></figure></p>
+<h3 id="29-5-比较运算符"><a href="#29-5-比较运算符" class="headerlink" title="29.5.比较运算符"></a>29.5.比较运算符</h3><p>-eq ：等于<br>-ne ：不等于<br>-gt ：大于<br>-ge ：大于等于<br>-lt ：小于<br>-le ：小于等于<br>-contains ：包含<br>-notcontains :不包含</p>
+<p><strong>求反</strong></p>
+<p>求反运算符为-not 但是像高级语言一样”！ “ 也支持求反。</p>
+<p><strong>布尔运算</strong></p>
+<p>-and ：和<br>-or ：或<br>-xor ：异或<br>-not ：逆</p>
+<h3 id="29-6-多行文本"><a href="#29-6-多行文本" class="headerlink" title="29.6.多行文本"></a>29.6.多行文本</h3><p>@“字符串”@格式定义多行文本，尤其是较长的文本。这里要注意开始和结束的标记必须另起一行。<br><figure class="highlight 1c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">@<span class="string">"</span></div><div class="line">这首诗用来评价陶渊明的诗歌再好不过了</div><div class="line"> </div><div class="line">一语天然万古新，豪华落尽见真淳。</div><div class="line">南窗白日羲皇上，未害渊明是晋人。</div><div class="line"><span class="string">"@</span></div></pre></td></tr></table></figure></p>
+<p>如果要提示用户输入可以使用read-host</p>
+<figure class="highlight mathematica"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">PS <span class="keyword">E</span>:&gt; $name=<span class="keyword">Read</span>-Host <span class="string">"请输入您的用户名"</span></div><div class="line">请输入您的用户名: Mosser Lee</div><div class="line">PS <span class="keyword">E</span>:&gt; <span class="string">"您输入的用户名为:$name"</span></div><div class="line">您输入的用户名为:Mosser Lee</div></pre></td></tr></table></figure>
+<h3 id="29-7-读写json文件"><a href="#29-7-读写json文件" class="headerlink" title="29.7.读写json文件"></a>29.7.读写json文件</h3><figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># 构造数据</span></div><div class="line"><span class="variable">$data</span>= @&#123;name=<span class="string">" Lily"</span></div><div class="line">age=<span class="number">18</span></div><div class="line">&#125;</div><div class="line"> </div><div class="line"><span class="comment"># 保存数据</span></div><div class="line"><span class="variable">$workfile</span> = <span class="string">"workfile.json"</span></div><div class="line"><span class="variable">$data</span> |<span class="built_in">ConvertTo-Json</span> | <span class="built_in">Out-File</span> <span class="variable">$workfile</span></div><div class="line"> </div><div class="line"><span class="comment"># 读数据</span></div><div class="line"><span class="variable">$readData</span> = <span class="built_in">ConvertFrom-Json</span> (<span class="built_in">Get-Content</span> <span class="variable">$workfile</span> -Raw)</div><div class="line"><span class="variable">$readData</span>.name</div><div class="line"><span class="variable">$readData</span>.age</div></pre></td></tr></table></figure>
+<h2 id="29-8-YAML配置文件"><a href="#29-8-YAML配置文件" class="headerlink" title="29.8.YAML配置文件"></a>29.8.YAML配置文件</h2><p><a href="http://cn.bing.com/search?q=PowerShell+YAML+Module&amp;FORM=QSRE1" target="_blank" rel="external">http://cn.bing.com/search?q=PowerShell+YAML+Module&amp;FORM=QSRE1</a></p>
+<p><a href="https://github.com/scottmuc/PowerYaml" target="_blank" rel="external">https://github.com/scottmuc/PowerYaml</a></p>
+<p>参考资料：</p>
+<p>[1] <strong><a href="http://www.pstips.net/powershell-online-tutorials/" target="_blank" rel="external">Powershell在线教程</a></strong></p>
+<p>[2] <strong><a href="https://msdn.microsoft.com/zh-cn/powershell/scripting/getting-started/getting-started-with-windows-powershell" target="_blank" rel="external">微软Powershell在线文档</a></strong></p>
+]]></content>
+    
+    <summary type="html">
+    
+      &lt;h2 id=&quot;1-简介&quot;&gt;&lt;a href=&quot;#1-简介&quot; class=&quot;headerlink&quot; title=&quot;1.简介&quot;&gt;&lt;/a&gt;1.简介&lt;/h2&gt;&lt;p&gt;PowerShell是微软推出的命令行脚本工具。它除了包含大量命令供使用外，还可以调用.NET Framework的类库，功
+    
+    </summary>
+    
+      <category term="地理平台" scheme="http://xinligis.github.io/categories/%E5%9C%B0%E7%90%86%E5%B9%B3%E5%8F%B0/"/>
+    
+    
+      <category term="ArcGIS,PowerShell,自动化部署" scheme="http://xinligis.github.io/tags/ArcGIS-PowerShell-%E8%87%AA%E5%8A%A8%E5%8C%96%E9%83%A8%E7%BD%B2/"/>
+    
+  </entry>
+  
+  <entry>
     <title>Portal for ArcGIS部署常见问题处理</title>
     <link href="http://xinligis.github.io/2016/09/05/20160905-Portal10.4.x-%E9%83%A8%E7%BD%B2%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E5%A4%84%E7%90%86/"/>
     <id>http://xinligis.github.io/2016/09/05/20160905-Portal10.4.x-部署常见问题处理/</id>
     <published>2016-09-05T04:52:04.000Z</published>
-    <updated>2016-09-05T06:35:16.117Z</updated>
+    <updated>2016-10-10T08:16:00.117Z</updated>
     
-    <content type="html"><![CDATA[<h1 id="Portal-for-ArcGIS部署常见问题处理"><a href="#Portal-for-ArcGIS部署常见问题处理" class="headerlink" title="Portal for ArcGIS部署常见问题处理"></a>Portal for ArcGIS部署常见问题处理</h1><h2 id="1-局域网内机器访问Portal中的地图时，提示地图服务加载失败"><a href="#1-局域网内机器访问Portal中的地图时，提示地图服务加载失败" class="headerlink" title="1. 局域网内机器访问Portal中的地图时，提示地图服务加载失败"></a>1. 局域网内机器访问Portal中的地图时，提示地图服务加载失败</h2><p><strong>软件环境：</strong> Windows Server 2008、Portal 10.2.2</p>
+    <content type="html"><![CDATA[<h2 id="1-局域网内机器访问Portal中的地图时，提示地图服务加载失败"><a href="#1-局域网内机器访问Portal中的地图时，提示地图服务加载失败" class="headerlink" title="1. 局域网内机器访问Portal中的地图时，提示地图服务加载失败"></a>1. 局域网内机器访问Portal中的地图时，提示地图服务加载失败</h2><p><strong>软件环境：</strong> Windows Server 2008、Portal 10.2.2</p>
 <p><strong>部署方案：</strong> 单机部署，Server–&gt;Portal–&gt;Web Adaptor</p>
 <ul>
 <li>Server使用机器名证书，使用机器名访问。</li>
@@ -89,12 +674,14 @@ Please check if the Publishing Tools on the server(System/PublishingTools) are s
     
     <summary type="html">
     
-      &lt;h1 id=&quot;Portal-for-ArcGIS部署常见问题处理&quot;&gt;&lt;a href=&quot;#Portal-for-ArcGIS部署常见问题处理&quot; class=&quot;headerlink&quot; title=&quot;Portal for ArcGIS部署常见问题处理&quot;&gt;&lt;/a&gt;Portal for 
+      &lt;h2 id=&quot;1-局域网内机器访问Portal中的地图时，提示地图服务加载失败&quot;&gt;&lt;a href=&quot;#1-局域网内机器访问Portal中的地图时，提示地图服务加载失败&quot; class=&quot;headerlink&quot; title=&quot;1. 局域网内机器访问Portal中的地图时，提示地图服
     
     </summary>
     
       <category term="地理平台" scheme="http://xinligis.github.io/categories/%E5%9C%B0%E7%90%86%E5%B9%B3%E5%8F%B0/"/>
     
+    
+      <category term="ArcGIS,Portal" scheme="http://xinligis.github.io/tags/ArcGIS-Portal/"/>
     
   </entry>
   

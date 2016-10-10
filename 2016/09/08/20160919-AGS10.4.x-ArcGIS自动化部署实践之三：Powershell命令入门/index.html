@@ -1,0 +1,264 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="GIS,地理信息,地理大数据,时空信息,IT技术"><title>ArcGIS自动化部署实践之三：PowerShell命令入门 | 辛立</title><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/normalize/4.2.0/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/0.6.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/0.6.0/grids-responsive-min.css"><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.bootcss.com/jquery/3.0.0/jquery.min.js"></script><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><link rel="alternate" type="application/atom+xml" href="/atom.xml"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">ArcGIS自动化部署实践之三：PowerShell命令入门</h1><a id="logo" href="/.">辛立</a><p class="description">静心耐心专心</p></div><div id="nav-menu"><a href="/." class="current"><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/atom.xml"><i class="fa fa-rss"> 订阅</i></a></div></div><div id="layout" class="pure-g"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">ArcGIS自动化部署实践之三：PowerShell命令入门</h1><div class="post-meta">Sep 8, 2016<span> | </span><span class="category"><a href="/categories/地理平台/">地理平台</a></span><script src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> Hits</span></span></div><div class="clear"><div id="toc" class="toc-article"><div class="toc-title">文章目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-简介"><span class="toc-number">1.</span> <span class="toc-text">1.简介</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-交互式"><span class="toc-number">2.</span> <span class="toc-text">2.交互式</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-运算符"><span class="toc-number">2.1.</span> <span class="toc-text">2.1 运算符</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-执行外部命令"><span class="toc-number">2.2.</span> <span class="toc-text">2.2 执行外部命令</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-cmdlets命令集"><span class="toc-number">2.3.</span> <span class="toc-text">2.3 cmdlets命令集</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-别名"><span class="toc-number">2.4.</span> <span class="toc-text">2.4 别名</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-变量"><span class="toc-number">3.</span> <span class="toc-text">3.变量</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-定义变量"><span class="toc-number">3.1.</span> <span class="toc-text">3.1 定义变量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-自动化变量"><span class="toc-number">3.2.</span> <span class="toc-text">3.2 自动化变量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-环境变量"><span class="toc-number">3.3.</span> <span class="toc-text">3.3 环境变量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-驱动器变量"><span class="toc-number">3.4.</span> <span class="toc-text">3.4 驱动器变量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-变量作用域"><span class="toc-number">3.5.</span> <span class="toc-text">3.5 变量作用域</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-6-变量的类型"><span class="toc-number">3.6.</span> <span class="toc-text">3.6 变量的类型</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-数组"><span class="toc-number">4.</span> <span class="toc-text">4 数组</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-创建数组"><span class="toc-number">4.1.</span> <span class="toc-text">4.1 创建数组</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-使用数组"><span class="toc-number">4.2.</span> <span class="toc-text">4.2 使用数组</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-复制数组"><span class="toc-number">4.3.</span> <span class="toc-text">4.3 复制数组</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-键值对"><span class="toc-number">4.4.</span> <span class="toc-text">4.4 键值对</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-管道"><span class="toc-number">5.</span> <span class="toc-text">5. 管道</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-重定向"><span class="toc-number">5.1.</span> <span class="toc-text">5.1 重定向</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-获取帮助信息"><span class="toc-number">6.</span> <span class="toc-text">6.获取帮助信息</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-获取命令详细信息"><span class="toc-number">7.</span> <span class="toc-text">7.获取命令详细信息</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-使用系统环境变量：使用-evn-开头"><span class="toc-number">8.</span> <span class="toc-text">8.使用系统环境变量：使用$evn:开头</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-Get-WmiObject"><span class="toc-number">9.</span> <span class="toc-text">9.Get-WmiObject</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-进程管理"><span class="toc-number">10.</span> <span class="toc-text">10.进程管理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-服务管理"><span class="toc-number">11.</span> <span class="toc-text">11.服务管理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#12-驱动器管理"><span class="toc-number">12.</span> <span class="toc-text">12.驱动器管理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#13-当前路径管理"><span class="toc-number">13.</span> <span class="toc-text">13.当前路径管理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#14-item操作"><span class="toc-number">14.</span> <span class="toc-text">14.item操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#15-网络操作"><span class="toc-number">15.</span> <span class="toc-text">15.网络操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#16-Out重定向"><span class="toc-number">16.</span> <span class="toc-text">16.Out重定向</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#17-Where-Object过滤操作"><span class="toc-number">17.</span> <span class="toc-text">17.Where-Object过滤操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#18-ForEach-Object循环操作"><span class="toc-number">18.</span> <span class="toc-text">18.ForEach-Object循环操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#19-Select-Object选择操作"><span class="toc-number">19.</span> <span class="toc-text">19.Select-Object选择操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#20-Sort-Object排序操作"><span class="toc-number">20.</span> <span class="toc-text">20.Sort-Object排序操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#21-Format-格式化操作"><span class="toc-number">21.</span> <span class="toc-text">21.Format-*格式化操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#22-使用静态类和方法"><span class="toc-number">22.</span> <span class="toc-text">22.使用静态类和方法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#23-Get-ChildItem操作"><span class="toc-number">23.</span> <span class="toc-text">23.Get-ChildItem操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#24-Get-Content操作"><span class="toc-number">24.</span> <span class="toc-text">24.Get-Content操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#25-注册表条目操作"><span class="toc-number">25.</span> <span class="toc-text">25.注册表条目操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#26-软件安装"><span class="toc-number">26.</span> <span class="toc-text">26.软件安装</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#27-函数定义"><span class="toc-number">27.</span> <span class="toc-text">27.函数定义</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#28-脚本文件（-ps1）"><span class="toc-number">28.</span> <span class="toc-text">28.脚本文件（.ps1）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#28-1-脚本概述"><span class="toc-number">28.1.</span> <span class="toc-text">28.1. 脚本概述</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#28-2-脚本执行"><span class="toc-number">28.2.</span> <span class="toc-text">28.2.脚本执行</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#28-3-脚本参数"><span class="toc-number">28.3.</span> <span class="toc-text">28.3.脚本参数</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#29-其他"><span class="toc-number">29.</span> <span class="toc-text">29.其他</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#29-1-注释"><span class="toc-number">29.1.</span> <span class="toc-text">29.1.注释</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#29-2-输出控制台并写入文件"><span class="toc-number">29.2.</span> <span class="toc-text">29.2.输出控制台并写入文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#29-3-查询PS版本"><span class="toc-number">29.3.</span> <span class="toc-text">29.3.查询PS版本</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#29-4-引号"><span class="toc-number">29.4.</span> <span class="toc-text">29.4.引号</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#29-5-比较运算符"><span class="toc-number">29.5.</span> <span class="toc-text">29.5.比较运算符</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#29-6-多行文本"><span class="toc-number">29.6.</span> <span class="toc-text">29.6.多行文本</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#29-7-读写json文件"><span class="toc-number">29.7.</span> <span class="toc-text">29.7.读写json文件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#29-8-YAML配置文件"><span class="toc-number">30.</span> <span class="toc-text">29.8.YAML配置文件</span></a></li></ol></div></div><div class="post-content"><h2 id="1-简介"><a href="#1-简介" class="headerlink" title="1.简介"></a>1.简介</h2><p>PowerShell是微软推出的命令行脚本工具。它除了包含大量命令供使用外，还可以调用.NET Framework的类库，功能远远超出了批处理命令，可以作为强大的运维管理工具。现在PowerShell除了跑在windows上，也可以跑在linux上。</p>
+<h2 id="2-交互式"><a href="#2-交互式" class="headerlink" title="2.交互式"></a>2.交互式</h2><h3 id="2-1-运算符"><a href="#2-1-运算符" class="headerlink" title="2.1 运算符"></a>2.1 运算符</h3><p><code>+(加) -(减) *(乘) /(除)</code></p>
+<h3 id="2-2-执行外部命令"><a href="#2-2-执行外部命令" class="headerlink" title="2.2 执行外部命令"></a>2.2 执行外部命令</h3><p>powershell中可以执行外部的命令，如：（不只限下表命令）<br>|外部命令|说明|<br>|—|—|<br>|netstat|查端口信息|<br>|ipconfig|查网络配置|<br>|cmd|启动cmd，退出使用exit|<br>|cmd /c help|查cmd的命令|<br>|notepad|打开记事本|</p>
+<h3 id="2-3-cmdlets命令集"><a href="#2-3-cmdlets命令集" class="headerlink" title="2.3 cmdlets命令集"></a>2.3 cmdlets命令集</h3><p>详见<a href="https://technet.microsoft.com/en-us/library/bb978526.aspx" target="_blank" rel="external">微软帮助</a>。</p>
+<h3 id="2-4-别名"><a href="#2-4-别名" class="headerlink" title="2.4 别名"></a>2.4 别名</h3><p>cmdlets的名称由一个动词和名称组成，为方便交互命令输入，可使用别名。</p>
+<ol>
+<li>查询别名所指的真实cmdlet命令</li>
+</ol>
+<p><code>ps c:\&gt;Get-Alias -name ls</code></p>
+<ol>
+<li>查看可用的别名<br>查看所有可用的别名以及别名个数。</li>
+</ol>
+<p><code>ps c:\&gt;ls alias: | Group-Object definition | sort -Descending Count</code></p>
+<ol>
+<li>创建和删除自己的别名<br>创建notepad的别名：</li>
+</ol>
+<p><code>ps c:\&gt;Set-Alias -Name Edit -Value notepad</code></p>
+<p>手动删除：(关闭命令会自动删除)</p>
+<p><code>ps c:\&gt;del alias:Edit</code></p>
+<h2 id="3-变量"><a href="#3-变量" class="headerlink" title="3.变量"></a>3.变量</h2><h3 id="3-1-定义变量"><a href="#3-1-定义变量" class="headerlink" title="3.1 定义变量"></a>3.1 定义变量</h3><p>使用<code>$</code>符号开头定义变量前缀。变量名支持数字、字母、下划线，不区分大小写。</p>
+<p><code>ps c:\&gt;$item=test</code></p>
+<h3 id="3-2-自动化变量"><a href="#3-2-自动化变量" class="headerlink" title="3.2 自动化变量"></a>3.2 自动化变量</h3><p>系统内置变量，用来存放用户信息、配置信息、运行时信息。如：<code>$Home、$Args、$Error</code>等。</p>
+<h3 id="3-3-环境变量"><a href="#3-3-环境变量" class="headerlink" title="3.3 环境变量"></a>3.3 环境变量</h3><p>查看所有的环境变量：<code>ls env:</code></p>
+<p>创建和删除环境变量：</p>
+<p><code>#env:TestVal1=&quot;new variable&quot;</code></p>
+<p><code>del env:windir</code></p>
+<p><em>注：$env是系统环境变量的副本，更改它不会真的修改系统的环境变量。如果调用.NET的方法则会更改。</em></p>
+<h3 id="3-4-驱动器变量"><a href="#3-4-驱动器变量" class="headerlink" title="3.4 驱动器变量"></a>3.4 驱动器变量</h3><p>所有不是自定义的变量都是驱动器变量。</p>
+<p>直接访问文件路径：(由于文件路径中包含有:等特殊符号，需要用大括号)<br><code>${c:/powershell/1.txt}</code></p>
+<p>对于路径中使用了驱动器变量的文件路径，需要在前面加上 ` 反引号。</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">Invoke-Expression <span class="string">" `<span class="subst">$&#123;$env:HOMEDRIVE/Powershell/ping.bat&#125;</span>"</span></div></pre></td></tr></table></figure>
+<h3 id="3-5-变量作用域"><a href="#3-5-变量作用域" class="headerlink" title="3.5 变量作用域"></a>3.5 变量作用域</h3><p>$global（全局）、$script（脚本）、$private（私有）、$local（默认）</p>
+<p>声明方式：</p>
+<p><code>ps&gt;$logo=&quot;this is test.&quot;</code></p>
+<p><code>ps&gt;$script:logo</code></p>
+<h3 id="3-6-变量的类型"><a href="#3-6-变量的类型" class="headerlink" title="3.6 变量的类型"></a>3.6 变量的类型</h3><p>类型与强类型</p>
+<h2 id="4-数组"><a href="#4-数组" class="headerlink" title="4 数组"></a>4 数组</h2><p>powershell返回的值以数组记录。</p>
+<h3 id="4-1-创建数组"><a href="#4-1-创建数组" class="headerlink" title="4.1 创建数组"></a>4.1 创建数组</h3><p><code>ps&gt;$num=2,3,1,2</code></p>
+<p>连续数字：<code>ps&gt;$nums=1..5</code></p>
+<p>存储不同类型数据：<code>ps&gt;$nums=1,&quot;类型&quot;,(get-date)</code></p>
+<p>空数组：<code>ps&gt;$nums=@()</code></p>
+<p>另一种声明：<code>ps&gt;$nums=@(1,2,3)</code></p>
+<h3 id="4-2-使用数组"><a href="#4-2-使用数组" class="headerlink" title="4.2 使用数组"></a>4.2 使用数组</h3><p>按索引号读取：<code>ps&gt;$nums[0]</code></p>
+<p>数组大小：<code>ps&gt;$nums.Count</code></p>
+<p>增加新项：<code>ps&gt;$nums+=&quot;元素3&quot;</code></p>
+<h3 id="4-3-复制数组"><a href="#4-3-复制数组" class="headerlink" title="4.3 复制数组"></a>4.3 复制数组</h3><p>引用赋值：<br><figure class="highlight smalltalk"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">ps&gt;<span class="string">$c</span>hs=<span class="comment">"a"</span>,<span class="comment">"b"</span>,<span class="comment">"c"</span></div><div class="line">ps&gt;<span class="string">$c</span>hsbak=<span class="string">$c</span>hs</div></pre></td></tr></table></figure></p>
+<p>完全复制：<code>ps&gt;$chsbak=$chs.Clone()</code></p>
+<h3 id="4-4-键值对"><a href="#4-4-键值对" class="headerlink" title="4.4 键值对"></a>4.4 键值对</h3><p><code>ps&gt;$stu=@{name=&quot;xinli&quot;;age=12;address=&quot;gz&quot;}</code></p>
+<h2 id="5-管道"><a href="#5-管道" class="headerlink" title="5. 管道"></a>5. 管道</h2><h3 id="5-1-重定向"><a href="#5-1-重定向" class="headerlink" title="5.1 重定向"></a>5.1 重定向</h3><p><code>&gt;</code> 覆盖，<code>&gt;&gt;</code> 追加<br><figure class="highlight stylus"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">ps c:\&gt;<span class="string">"this is test."</span> &gt; hello<span class="selector-class">.txt</span></div><div class="line">ps c:\&gt;<span class="string">"this is test2."</span> &gt; hello<span class="selector-class">.txt</span></div><div class="line">ps c:\&gt;Get-Content hello.txt</div></pre></td></tr></table></figure></p>
+<h2 id="6-获取帮助信息"><a href="#6-获取帮助信息" class="headerlink" title="6.获取帮助信息"></a>6.获取帮助信息</h2><p>Get-Help、help、man</p>
+<h2 id="7-获取命令详细信息"><a href="#7-获取命令详细信息" class="headerlink" title="7.获取命令详细信息"></a>7.获取命令详细信息</h2><p>Get-Command</p>
+<p>示例： <code>Get-Command *-Service</code></p>
+<p>查命令的详细参数信息：<br><code>Get-Command -Name Get_Service -Syntax</code></p>
+<p>查询命令的所有属性和方法说明，使用Get-Member</p>
+<p><code>PS&gt; Get-Service | Get-Member</code></p>
+<p>查询变量的详细信息：<br><code>PS&gt; $loc | Get-Member -MemberType Property</code></p>
+<h2 id="8-使用系统环境变量：使用-evn-开头"><a href="#8-使用系统环境变量：使用-evn-开头" class="headerlink" title="8.使用系统环境变量：使用$evn:开头"></a>8.使用系统环境变量：使用$evn:开头</h2><p>PS&gt; $env:SystemRoot</p>
+<h2 id="9-Get-WmiObject"><a href="#9-Get-WmiObject" class="headerlink" title="9.Get-WmiObject"></a>9.Get-WmiObject</h2><ul>
+<li>查询所有的WMI类：<code>Get-WmiObject -List</code></li>
+<li>查询类的详细信息：<code>Get-WmiObject -class Win32_OperatingSystem -ComputerName .| Get-Member</code></li>
+</ul>
+<ol>
+<li>计算机重启、关机操作</li>
+</ol>
+<p><code>(Get-WmiObject -Class Win32_OperatingSystem -ComputerName .).Win32Shutdown(0)</code></p>
+<p>标识0：注销</p>
+<p>标识1：关闭</p>
+<p>标识2：重启</p>
+<p>ComputerName参数指定点值，表示本地计算机。</p>
+<ol>
+<li>查询计算机相关信息</li>
+</ol>
+<p><code>Get-WmiObject -Class Win32_Desktop -ComputerName .</code></p>
+<table>
+<thead>
+<tr>
+<th>接口类</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Win32_Desktop</td>
+<td>返回桌面信息</td>
+</tr>
+<tr>
+<td>Win32_BIOS</td>
+<td>返回BIOS信息</td>
+</tr>
+<tr>
+<td>Win32_Processor</td>
+<td>返回处理器信息</td>
+</tr>
+<tr>
+<td>Win32_ComputerSystem</td>
+<td>返回计算机制造商信息</td>
+</tr>
+<tr>
+<td>Win32_OperatingSystem</td>
+<td>操作系统信息</td>
+</tr>
+</tbody>
+</table>
+<h2 id="10-进程管理"><a href="#10-进程管理" class="headerlink" title="10.进程管理"></a>10.进程管理</h2><p>查进程(按进程ID或者名称)：<code>Get-Process -id 0</code>或者<code>Get-Process -Name ArcSOC*</code></p>
+<p>停止进程：<code>Stop-Process -Name Google*</code></p>
+<h2 id="11-服务管理"><a href="#11-服务管理" class="headerlink" title="11.服务管理"></a>11.服务管理</h2><p>查服务信息（按服务名）：<code>Get-Service -Name sde*</code></p>
+<p>查服务信息（按服务显示名）: <code>Get-Service -DisplayName se*</code></p>
+<p>停止服务：<code>Stop-Service -Name spooler</code></p>
+<p>启动服务：<code>Start-Service -Name spooler</code></p>
+<p>暂停服务：<code>Suspend-Service -Name spooler</code></p>
+<p>重启服务：<code>Restart-Service -Name spooler</code></p>
+<h2 id="12-驱动器管理"><a href="#12-驱动器管理" class="headerlink" title="12.驱动器管理"></a>12.驱动器管理</h2><p>Get-PSDriver</p>
+<p>文件系统驱动器（c:）</p>
+<p>注册表驱动器（HKCU:和HKLM:）</p>
+<p>证书驱动器（Cert:）</p>
+<h2 id="13-当前路径管理"><a href="#13-当前路径管理" class="headerlink" title="13.当前路径管理"></a>13.当前路径管理</h2><p>获取当前路径：<code>Get-Location</code></p>
+<p>设置当前路径：<code>Set-Location</code></p>
+<p><em>相对路径的标准表示法中，句点 (.) 表示当前文件夹，而双句点 (..) 表示当前位置的父目录。</em></p>
+<h2 id="14-item操作"><a href="#14-item操作" class="headerlink" title="14.item操作"></a>14.item操作</h2><p>Item指文件、文件夹、注册表项等。</p>
+<p>cmdlet中提供了9个可用的item操作命令：查询可用的item命令</p>
+<p><code>Get-Command Noun Item</code></p>
+<ol>
+<li><p>创建新项<br><code>New-Item -Path c:\New.Dir -ItemType Directory</code></p>
+</li>
+<li><p>重命名项<br><code>Rename-Item -Path c:\New.Dir c:\newfile</code></p>
+</li>
+<li><p>移动项<br><code>Move-Item -Path c:\newfile -Destination c:\automate</code></p>
+</li>
+<li><p>复制项(只复制文件夹)<br><code>Copy-Item -Path c:\newfile -Destination c:\automate</code></p>
+</li>
+</ol>
+<p>复制所有内容：</p>
+<p><code>Copy-Item -Path C:\New.Directory -Destination C:\temp -Recurse -Force</code></p>
+<h2 id="15-网络操作"><a href="#15-网络操作" class="headerlink" title="15.网络操作"></a>15.网络操作</h2><ol>
+<li><p>查IP地址<br><code>Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter IPEnabled=TRUE -ComputerName . | Format-Table -Property IPAddress</code></p>
+</li>
+<li><p>Ping操作：<code>Win32_PingStatus</code></p>
+</li>
+<li>创建网络共享：<code>(Get-WmiObject -List -ComputerName . | Where-Object -FilterScript {$_.Name -eq &quot;Win32_Share&quot;}).Create(&quot;C:\temp&quot;,&quot;TempShare&quot;,0,25,&quot;test share of the temp folder&quot;)</code></li>
+</ol>
+<p><em>注：Create()方法是Win32_Share类的静态方法，需要使用类来调用，示例中的()内容是通过list来查询来获取WMI类</em></p>
+<h2 id="16-Out重定向"><a href="#16-Out重定向" class="headerlink" title="16.Out重定向"></a>16.Out重定向</h2><p>Out-Host 输出成文本，方便控制台输出。</p>
+<p><code>Get-Process | Out-Host -Paging | Format-List</code></p>
+<p>Out-File保存到文件。</p>
+<p><code>Get-Process | Out-File -FilePath c:\pslist.txt</code></p>
+<h2 id="17-Where-Object过滤操作"><a href="#17-Where-Object过滤操作" class="headerlink" title="17.Where-Object过滤操作"></a>17.Where-Object过滤操作</h2><p><code>Where-Object FilterScript {}</code></p>
+<p>过滤条件中的比较运算符<br>|运算符|说明|<br>|—|—-|<br>|-eq|等于|<br>|-ne|不等于|<br>|-lt|小于|<br>|-le|小于等于|<br>|-gt|大于|<br>|-ge|大于等于|<br>|-like|相似|<br>|-notlike|不相似|<br>|-contains|包含|<br>|-notcontains|不包含|<br>|-and|与操作|<br>|-or|或操作|<br>|-not|取反|<br>|!|取反|</p>
+<p><code>$_</code>:表示当前对象。</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="built_in">Get-WmiObject</span> -Class Win32_SystemDriver | <span class="built_in">Where-Object</span> -FilterScript &#123;<span class="variable">$_</span>.State <span class="nomarkup">-eq</span> <span class="string">"Running"</span>&#125;</div></pre></td></tr></table></figure>
+<h2 id="18-ForEach-Object循环操作"><a href="#18-ForEach-Object循环操作" class="headerlink" title="18.ForEach-Object循环操作"></a>18.ForEach-Object循环操作</h2><p><code>Get-WmiObject -Class Win32_LogicalDisk | ForEach-Object -Process {$_.FreeSpace/1024.0/1024.0}</code></p>
+<h2 id="19-Select-Object选择操作"><a href="#19-Select-Object选择操作" class="headerlink" title="19.Select-Object选择操作"></a>19.Select-Object选择操作</h2><p>可使用Select-Object创建新对象。<br><code>Get-WmiObject -Class Win32_LogicalDisk | Select-Object -Property Name,FreeSpace</code></p>
+<p>可通过Select-Object创建新对象，然后根据需要修改对象的信息。</p>
+<h2 id="20-Sort-Object排序操作"><a href="#20-Sort-Object排序操作" class="headerlink" title="20.Sort-Object排序操作"></a>20.Sort-Object排序操作</h2><p><code>Get-WmiObject -Class Win32_SystemDriver | Sort-Object -Property State,Name</code></p>
+<h2 id="21-Format-格式化操作"><a href="#21-Format-格式化操作" class="headerlink" title="21.Format-*格式化操作"></a>21.Format-*格式化操作</h2><ol>
+<li><code>Format-Wide</code></li>
+</ol>
+<p>示例：<br><code>Get-Process -Name powershell | Format-Wide -Property Id</code></p>
+<ol>
+<li><code>Format-List</code></li>
+</ol>
+<p>示例：<br><code>Get-Process -Name powershell | Format-List</code></p>
+<ol>
+<li><code>Format-Table</code></li>
+</ol>
+<p>示例：<br><code>Get-Process -Name powershell | Format-Table -Property Path,Name,Id,Company</code></p>
+<h2 id="22-使用静态类和方法"><a href="#22-使用静态类和方法" class="headerlink" title="22.使用静态类和方法"></a>22.使用静态类和方法</h2><p>通过使用方括号将类名称括起来以引用静态类。如：<code>PS&gt; [System.Environment]</code></p>
+<p>通过使用::来使用类的静态属性或方法。如：<code>PS&gt; [System.Environment]::CommanLine</code></p>
+<p>System.Math类：<code>[System.Math]::Sqrt(9)</code></p>
+<h2 id="23-Get-ChildItem操作"><a href="#23-Get-ChildItem操作" class="headerlink" title="23.Get-ChildItem操作"></a>23.Get-ChildItem操作</h2><p>枚举文件夹内容：<code>Get-ChildItem -Path c:\Windows</code></p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>-Recurse</td>
+<td>列出所有项</td>
+</tr>
+<tr>
+<td>-Name</td>
+<td>只显示名称</td>
+</tr>
+<tr>
+<td>-Force</td>
+<td>显示隐藏项</td>
+</tr>
+<tr>
+<td>-Exclude</td>
+<td>排除项</td>
+</tr>
+</tbody>
+</table>
+<p>路径参数支持：*、？、[]正则表达式</p>
+<h2 id="24-Get-Content操作"><a href="#24-Get-Content操作" class="headerlink" title="24.Get-Content操作"></a>24.Get-Content操作</h2><p>用于读取文件内容。<br><code>Get-Content -Path C:\temp\DomainMembers.txt</code></p>
+<h2 id="25-注册表条目操作"><a href="#25-注册表条目操作" class="headerlink" title="25.注册表条目操作"></a>25.注册表条目操作</h2><p>列出注册表条目：<br><code>PS&gt; Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion</code></p>
+<p>查看单个注册表项：<br><code>PS&gt; Get-ItemProperty -Path HKLM:\Software\Microsoft\Windows\CurrentVersion -Name DevicePath</code></p>
+<p>或者使用WshShell COM对象查询：<code>(New-Object -ComObject WScript.Shell).RegRead(&quot;HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\DevicePath&quot;)</code></p>
+<h2 id="26-软件安装"><a href="#26-软件安装" class="headerlink" title="26.软件安装"></a>26.软件安装</h2><p>只针对使用Windows Install的应用程序。</p>
+<p>列出安装的应用程序：<code>Get-WmiObject -Class Win32_Product -ComputerName .</code></p>
+<p>安装应用程序：<code>(Get-WmiObject -List -ComputerName .| Where-Object -FilterScript {$_.Name -eq &quot;Win32_Product&quot;}).Install(c:\dsp\newpack.msi)</code></p>
+<h2 id="27-函数定义"><a href="#27-函数定义" class="headerlink" title="27.函数定义"></a>27.函数定义</h2><ol>
+<li><p>函数定义格式如下：</p>
+<figure class="highlight actionscript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">funcName</span><span class="params">(args[])</span></span></div><div class="line">&#123;</div><div class="line">    code    </div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>函数的返回值</p>
+<figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">function</span> <span class="title">Square</span><span class="params">([double]$num)</span></span></div><div class="line">&#123;</div><div class="line">    <span class="keyword">return</span> $num*$num</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<p>调用方法：<code>ps&gt; Square 9.8</code></p>
+<p>返回多个值：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">function</span> gbMeasure(<span class="variable">$amount</span>)</div><div class="line">&#123;</div><div class="line">    <span class="string">"<span class="variable">$amount</span> GB=<span class="variable">$($amount)</span> GB"</span></div><div class="line">    <span class="string">"<span class="variable">$amount</span> GB=<span class="variable">$($amount*1gb/1mb)</span> MB"</span></div><div class="line">    <span class="string">"<span class="variable">$amount</span> GB=<span class="variable">$($amount*1gb/1kb)</span> KB"</span></div><div class="line">    <span class="string">"<span class="variable">$amount</span> GB=<span class="variable">$($amount*1gb)</span> B"</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>调用方法：<br><figure class="highlight applescript"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">ps&gt;$<span class="literal">result</span>=gbMeasure <span class="number">1</span></div><div class="line">ps&gt;$<span class="literal">result</span></div></pre></td></tr></table></figure></p>
+<p><em>返回值是多个时，记录在数组中，可通过数组方式访问结果。</em></p>
+<ol>
+<li>调试信息与错误信息</li>
+</ol>
+<p>使用Wirte-Debug命令输出调试信息，只有调试模式下才显示。<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">Function</span> <span class="title">Test</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">    Write-Debug <span class="string">"Try to calculate."</span></div><div class="line">    <span class="string">"3.1415926"</span></div><div class="line">    Write-Debug <span class="string">"Done."</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>调试模式打开与关闭：<br><figure class="highlight autoit"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$DebugPreference=<span class="string">"Continue"</span></div><div class="line">$DebugPreference=<span class="string">"SilentlyContinue"</span></div></pre></td></tr></table></figure></p>
+<h2 id="28-脚本文件（-ps1）"><a href="#28-脚本文件（-ps1）" class="headerlink" title="28.脚本文件（.ps1）"></a>28.脚本文件（.ps1）</h2><h3 id="28-1-脚本概述"><a href="#28-1-脚本概述" class="headerlink" title="28.1. 脚本概述"></a>28.1. 脚本概述</h3><p>对于需要重复执行的命令，可以定义在脚本文件中。与cmd的批处理文件类似。</p>
+<p>test.ps1的内容：<br><figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="variable">$ps</span> = <span class="built_in">Get-Process</span> | <span class="built_in">Where-Object</span> -FilterScript &#123;<span class="variable">$_</span>.Name <span class="nomarkup">-like</span> <span class="string">"W*"</span>&#125;</div><div class="line"><span class="variable">$ps</span>.GetType().Name</div><div class="line"><span class="variable">$ps</span>[<span class="number">1</span>]</div></pre></td></tr></table></figure></p>
+<h3 id="28-2-脚本执行"><a href="#28-2-脚本执行" class="headerlink" title="28.2.脚本执行"></a>28.2.脚本执行</h3><p>需要使用相对路径或者绝对路径：<br><figure class="highlight taggerscript"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">ps e:<span class="symbol">\&gt;</span>.<span class="symbol">\t</span>ext.ps1</div></pre></td></tr></table></figure></p>
+<p>注：脚本只能管理员才能执行，可通过<code>Get-ExecutionPolicy</code>查看执行策略，通过<code>Set-ExecutionPolicy</code>设置，可设置的值有：</p>
+<p>Unrestricted:权限最高，可以不受限制执行任何脚本。</p>
+<p>Default:为Powershell默认的策略：Restricted，不允许任何脚本执行。</p>
+<p>AllSigned：所有脚本都必须经过签名才能在运行。</p>
+<p>RemoteSigned：本地脚本无限制，但是对来自网络的脚本必须经过签名。</p>
+<h3 id="28-3-脚本参数"><a href="#28-3-脚本参数" class="headerlink" title="28.3.脚本参数"></a>28.3.脚本参数</h3><p>脚本文件可接收外部参数，使用$args变量。</p>
+<p>如果需要接收的参数比较多，且有顺序要求，建议为参数指定名称，如脚本文件内容：<br><figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">param</span>(<span class="variable">$Directory</span>,<span class="variable">$FileName</span>)</div><div class="line"> </div><div class="line"><span class="string">"Directory= <span class="variable">$Directory</span>"</span></div><div class="line"><span class="string">"FileName=<span class="variable">$FileName</span>"</span></div></pre></td></tr></table></figure></p>
+<p>执行脚本：<code>ps e:/&gt; .\test.ps1 -Directory $env:windir -FileName config.xml</code></p>
+<p>还可以增加参数验证，如：<br><figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">param</span>(</div><div class="line">[string]<span class="variable">$Name</span>=$(<span class="keyword">throw</span> <span class="string">"Parameter missing: -name Name"</span>) ,</div><div class="line">[int]<span class="variable">$Age</span>=$(<span class="keyword">throw</span> <span class="string">"Parameter missing: -age x as number"</span>)</div><div class="line">)</div><div class="line"> </div><div class="line"><span class="string">"Name= <span class="variable">$Name</span>"</span></div><div class="line"><span class="string">"Age=<span class="variable">$Age</span>"</span></div></pre></td></tr></table></figure></p>
+<h2 id="29-其他"><a href="#29-其他" class="headerlink" title="29.其他"></a>29.其他</h2><h3 id="29-1-注释"><a href="#29-1-注释" class="headerlink" title="29.1.注释"></a>29.1.注释</h3><p><strong>行注释</strong>：# 这是行注释</p>
+<p><strong>块注释</strong>：&lt;# 这是块注释 #&gt;</p>
+<h3 id="29-2-输出控制台并写入文件"><a href="#29-2-输出控制台并写入文件" class="headerlink" title="29.2.输出控制台并写入文件"></a>29.2.输出控制台并写入文件</h3><p><code>Write-Host</code>会输出控制台，但不会写文件。</p>
+<p><code>Write-Output</code>会写文件，但不会输出控制台。</p>
+<p><code>Write-Output hello | out-file -filepath C:\temp\a.txt</code></p>
+<h3 id="29-3-查询PS版本"><a href="#29-3-查询PS版本" class="headerlink" title="29.3.查询PS版本"></a>29.3.查询PS版本</h3><p><code>$PSVersionTable.PSVersion</code></p>
+<h3 id="29-4-引号"><a href="#29-4-引号" class="headerlink" title="29.4.引号"></a>29.4.引号</h3><p>单引号任何情况下都只表示引号内自身的字符。也就是说，单引号内的内容不会进行变量的代换与字符的转义。而在双引号中，则允许进行变量代换和字符转义。在对变量进行代换和字符进行转义的判断上，是由命令最外层的引号决定的。</p>
+<p>使用双引号输出：<br><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="variable">$a</span>=<span class="string">"World"</span> </div><div class="line"><span class="string">"Hello, <span class="variable">$a</span>"</span></div></pre></td></tr></table></figure></p>
+<h3 id="29-5-比较运算符"><a href="#29-5-比较运算符" class="headerlink" title="29.5.比较运算符"></a>29.5.比较运算符</h3><p>-eq ：等于<br>-ne ：不等于<br>-gt ：大于<br>-ge ：大于等于<br>-lt ：小于<br>-le ：小于等于<br>-contains ：包含<br>-notcontains :不包含</p>
+<p><strong>求反</strong></p>
+<p>求反运算符为-not 但是像高级语言一样”！ “ 也支持求反。</p>
+<p><strong>布尔运算</strong></p>
+<p>-and ：和<br>-or ：或<br>-xor ：异或<br>-not ：逆</p>
+<h3 id="29-6-多行文本"><a href="#29-6-多行文本" class="headerlink" title="29.6.多行文本"></a>29.6.多行文本</h3><p>@“字符串”@格式定义多行文本，尤其是较长的文本。这里要注意开始和结束的标记必须另起一行。<br><figure class="highlight 1c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">@<span class="string">"</span></div><div class="line">这首诗用来评价陶渊明的诗歌再好不过了</div><div class="line"> </div><div class="line">一语天然万古新，豪华落尽见真淳。</div><div class="line">南窗白日羲皇上，未害渊明是晋人。</div><div class="line"><span class="string">"@</span></div></pre></td></tr></table></figure></p>
+<p>如果要提示用户输入可以使用read-host</p>
+<figure class="highlight mathematica"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">PS <span class="keyword">E</span>:&gt; $name=<span class="keyword">Read</span>-Host <span class="string">"请输入您的用户名"</span></div><div class="line">请输入您的用户名: Mosser Lee</div><div class="line">PS <span class="keyword">E</span>:&gt; <span class="string">"您输入的用户名为:$name"</span></div><div class="line">您输入的用户名为:Mosser Lee</div></pre></td></tr></table></figure>
+<h3 id="29-7-读写json文件"><a href="#29-7-读写json文件" class="headerlink" title="29.7.读写json文件"></a>29.7.读写json文件</h3><figure class="highlight powershell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># 构造数据</span></div><div class="line"><span class="variable">$data</span>= @&#123;name=<span class="string">" Lily"</span></div><div class="line">age=<span class="number">18</span></div><div class="line">&#125;</div><div class="line"> </div><div class="line"><span class="comment"># 保存数据</span></div><div class="line"><span class="variable">$workfile</span> = <span class="string">"workfile.json"</span></div><div class="line"><span class="variable">$data</span> |<span class="built_in">ConvertTo-Json</span> | <span class="built_in">Out-File</span> <span class="variable">$workfile</span></div><div class="line"> </div><div class="line"><span class="comment"># 读数据</span></div><div class="line"><span class="variable">$readData</span> = <span class="built_in">ConvertFrom-Json</span> (<span class="built_in">Get-Content</span> <span class="variable">$workfile</span> -Raw)</div><div class="line"><span class="variable">$readData</span>.name</div><div class="line"><span class="variable">$readData</span>.age</div></pre></td></tr></table></figure>
+<h2 id="29-8-YAML配置文件"><a href="#29-8-YAML配置文件" class="headerlink" title="29.8.YAML配置文件"></a>29.8.YAML配置文件</h2><p><a href="http://cn.bing.com/search?q=PowerShell+YAML+Module&amp;FORM=QSRE1" target="_blank" rel="external">http://cn.bing.com/search?q=PowerShell+YAML+Module&amp;FORM=QSRE1</a></p>
+<p><a href="https://github.com/scottmuc/PowerYaml" target="_blank" rel="external">https://github.com/scottmuc/PowerYaml</a></p>
+<p>参考资料：</p>
+<p>[1] <strong><a href="http://www.pstips.net/powershell-online-tutorials/" target="_blank" rel="external">Powershell在线教程</a></strong></p>
+<p>[2] <strong><a href="https://msdn.microsoft.com/zh-cn/powershell/scripting/getting-started/getting-started-with-windows-powershell" target="_blank" rel="external">微软Powershell在线文档</a></strong></p>
+</div><script type="text/javascript" src="/js/share.js?v=0.0.0" async></script><a data-url="http://xinligis.github.io/2016/09/08/20160919-AGS10.4.x-ArcGIS自动化部署实践之三：Powershell命令入门/" data-id="ciu3sfy8i0009t0v8rtmw7m3n" class="article-share-link">分享到</a><div class="tags"><a href="/tags/ArcGIS-PowerShell-自动化部署/">ArcGIS,PowerShell,自动化部署</a></div><div class="post-nav"><a href="/2016/09/08/20160909-AGS10.4.x-ArcGIS自动化部署实践之二：Chef生产环境测试/" class="pre">ArcGIS自动化部署实践之二：Chef生产环境测试</a><a href="/2016/09/05/20160905-Portal10.4.x-部署常见问题处理/" class="next">Portal for ArcGIS部署常见问题处理</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><div class="search-form"><input id="local-search-input" placeholder="Search" type="text" name="q" results="0"/><div id="local-search-result"></div></div></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/地理平台/">地理平台</a><span class="category-list-count">5</span></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最新文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2016/10/09/20161009-AGS10.4.x-ArcGIS自动化部署实践之四：基于powershell的AGS Server自动部署1/">ArcGIS自动化部署实践之四：基于PowerShell的AGS Server自动部署1</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/09/08/20160908-AGS10.4.x-ArcGIS自动化部署实践之一：Chef环境搭建与演练/">ArcGIS自动化部署实践之一：Chef环境搭建与演练</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/09/08/20160909-AGS10.4.x-ArcGIS自动化部署实践之二：Chef生产环境测试/">ArcGIS自动化部署实践之二：Chef生产环境测试</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/09/08/20160919-AGS10.4.x-ArcGIS自动化部署实践之三：Powershell命令入门/">ArcGIS自动化部署实践之三：PowerShell命令入门</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/09/05/20160905-Portal10.4.x-部署常见问题处理/">Portal for ArcGIS部署常见问题处理</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="http://xinligis.github.io/" title="GitHub" target="_blank">GitHub</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">© <a href="/." rel="nofollow">辛立.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a id="rocket" href="#top" class="show"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.bootcss.com/fancybox/2.1.5/jquery.fancybox.pack.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="/css/jquery.fancybox.css?v=0.0.0"><script type="text/javascript" src="/js/search.js?v=0.0.0"></script><script>var search_path = 'search.xml';
+if (search_path.length == 0) {
+   search_path = 'search.xml';
+}
+var path = '/' + search_path;
+searchFunc(path, 'local-search-input', 'local-search-result');
+</script><script type="text/x-mathjax-config">MathJax.Hub.Config({
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+  });
+</script><script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML" async></script><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>

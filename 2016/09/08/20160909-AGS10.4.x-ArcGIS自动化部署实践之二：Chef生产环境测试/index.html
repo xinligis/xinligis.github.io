@@ -1,0 +1,82 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="GIS,地理信息,地理大数据,时空信息,IT技术"><title>ArcGIS自动化部署实践之二：Chef生产环境测试 | 辛立</title><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/normalize/4.2.0/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/0.6.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/0.6.0/grids-responsive-min.css"><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.bootcss.com/jquery/3.0.0/jquery.min.js"></script><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><link rel="alternate" type="application/atom+xml" href="/atom.xml"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">ArcGIS自动化部署实践之二：Chef生产环境测试</h1><a id="logo" href="/.">辛立</a><p class="description">静心耐心专心</p></div><div id="nav-menu"><a href="/." class="current"><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/atom.xml"><i class="fa fa-rss"> 订阅</i></a></div></div><div id="layout" class="pure-g"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">ArcGIS自动化部署实践之二：Chef生产环境测试</h1><div class="post-meta">Sep 8, 2016<span> | </span><span class="category"><a href="/categories/地理平台/">地理平台</a></span><script src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> Hits</span></span></div><div class="clear"><div id="toc" class="toc-article"><div class="toc-title">文章目录</div><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-概述"><span class="toc-number">1.</span> <span class="toc-text">1.概述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-搭建Chef-Workstation环境"><span class="toc-number">2.</span> <span class="toc-text">2.搭建Chef Workstation环境</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-软件"><span class="toc-number">2.1.</span> <span class="toc-text">2.1 软件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-安装chef-DK软件"><span class="toc-number">2.2.</span> <span class="toc-text">2.2 安装chef DK软件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-创建工作目录"><span class="toc-number">2.3.</span> <span class="toc-text">2.3 创建工作目录</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-搭建Chef-Server环境"><span class="toc-number">3.</span> <span class="toc-text">3.搭建Chef Server环境</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-注册Chef"><span class="toc-number">3.1.</span> <span class="toc-text">3.1 注册Chef</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-配置workstation访问Chef-Server"><span class="toc-number">3.2.</span> <span class="toc-text">3.2 配置workstation访问Chef Server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-测试与Chef-Server的连接"><span class="toc-number">3.3.</span> <span class="toc-text">3.4 测试与Chef Server的连接</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-从Chef-Server下载cookbook"><span class="toc-number">3.4.</span> <span class="toc-text">3.5 从Chef Server下载cookbook</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-6-上传cookbook到Chef-Server"><span class="toc-number">3.5.</span> <span class="toc-text">3.6 上传cookbook到Chef Server</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-自动部署Node节点机器"><span class="toc-number">4.</span> <span class="toc-text">4.自动部署Node节点机器</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-Node节点机器要求"><span class="toc-number">4.1.</span> <span class="toc-text">4.1 Node节点机器要求</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-测试连接Node节点机器"><span class="toc-number">4.2.</span> <span class="toc-text">4.2 测试连接Node节点机器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-远程配置Node节点机器"><span class="toc-number">4.3.</span> <span class="toc-text">4.3 远程配置Node节点机器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-测试远程配置结果"><span class="toc-number">4.4.</span> <span class="toc-text">4.4 测试远程配置结果</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-更新配置并重新运行"><span class="toc-number">5.</span> <span class="toc-text">5.更新配置并重新运行</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#参考资料"><span class="toc-number">6.</span> <span class="toc-text">参考资料</span></a></li></ol></div></div><div class="post-content"><h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1.概述"></a>1.概述</h2><p>Chef包含三大组件：<code>Chef Server</code>、<code>Chef Workstation</code>和<code>Chef Node</code>。本次测试需要两台Windows机器，一台用于部署workstation，一台部署node，Server机器则使用在线资源。</p>
+<h2 id="2-搭建Chef-Workstation环境"><a href="#2-搭建Chef-Workstation环境" class="headerlink" title="2.搭建Chef Workstation环境"></a>2.搭建Chef Workstation环境</h2><h3 id="2-1-软件"><a href="#2-1-软件" class="headerlink" title="2.1 软件"></a>2.1 软件</h3><ul>
+<li>Windows Server 2012 R2</li>
+<li>Chef Development Kit 0.17.17</li>
+<li>knife-windows插件</li>
+</ul>
+<blockquote>
+<p>knife-windows插件包含在Chef DK中，但还是建议安装最新版本，安装可使用命令：<code>chef gem install knife-windows</code></p>
+</blockquote>
+<h3 id="2-2-安装chef-DK软件"><a href="#2-2-安装chef-DK软件" class="headerlink" title="2.2 安装chef DK软件"></a>2.2 安装chef DK软件</h3><p>安装过程略。</p>
+<h3 id="2-3-创建工作目录"><a href="#2-3-创建工作目录" class="headerlink" title="2.3 创建工作目录"></a>2.3 创建工作目录</h3><p><code>mkdir learn-chef</code></p>
+<p><code>cd learn-chef</code></p>
+<h2 id="3-搭建Chef-Server环境"><a href="#3-搭建Chef-Server环境" class="headerlink" title="3.搭建Chef Server环境"></a>3.搭建Chef Server环境</h2><p>Chef提供了在线的Chef Server主机，为方便测试直接使用在线主机，当然也可以部署自己的Chef Server主机，部署步骤见<a href="https://learn.chef.io/install-and-manage-your-own-chef-server/" target="_blank" rel="external">安装自己的chef Server</a></p>
+<h3 id="3-1-注册Chef"><a href="#3-1-注册Chef" class="headerlink" title="3.1 注册Chef"></a>3.1 注册Chef</h3><p><a href="https://manage.chef.io/signup/" target="_blank" rel="external">注册Chef</a> </p>
+<h3 id="3-2-配置workstation访问Chef-Server"><a href="#3-2-配置workstation访问Chef-Server" class="headerlink" title="3.2 配置workstation访问Chef Server"></a>3.2 配置workstation访问Chef Server</h3><p>在workstation上访问Chef Server使用knife命令，该命令访问Server时，需要两个配置文件：RAS key文件和配置文件。</p>
+<ol>
+<li>在工作目录下创建.chef文件夹lear-chef/.chef。</li>
+</ol>
+<p><code>mkdir learn-chef/.chef</code></p>
+<ol>
+<li>登录<a href="https://manage.chef.io" target="_blank" rel="external">chef manager</a>，在<strong>Administration</strong>下选择组织，再选择<strong>Generate Knife Config</strong>即可创建<code>knife.rb</code>配置文件。将该文件保存在.chef目录下。</li>
+</ol>
+<p><img src="http://od0gjyiqq.bkt.clouddn.com/20160909-chef-knifekey-20161010.png" alt="Generate Knife Config"></p>
+<ol>
+<li>再选择<strong>Users</strong>–&gt;<strong>Reset Key</strong>，在弹出框中继续选择<strong>Reset Key</strong>，并将内容下载下来，最后保存到.chef目录中。</li>
+</ol>
+<p><img src="http://od0gjyiqq.bkt.clouddn.com/20160909-chef-manage-20161010.png" alt="Knife key"></p>
+<h3 id="3-4-测试与Chef-Server的连接"><a href="#3-4-测试与Chef-Server的连接" class="headerlink" title="3.4 测试与Chef Server的连接"></a>3.4 测试与Chef Server的连接</h3><p><code>knife ssl check</code></p>
+<h3 id="3-5-从Chef-Server下载cookbook"><a href="#3-5-从Chef-Server下载cookbook" class="headerlink" title="3.5 从Chef Server下载cookbook"></a>3.5 从Chef Server下载cookbook</h3><ol>
+<li>在工作目录learn-chef下创建cookbooks目录。</li>
+</ol>
+<p><code>mkdir cookbooks</code></p>
+<ol>
+<li>下载IIS cookbook并解压</li>
+</ol>
+<p><code>knife cookbook site download learn_chef_iis</code></p>
+<p><code>tar -zxvf learn_chef_iis-0.2.1.tar.gz -C cookbooks</code></p>
+<h3 id="3-6-上传cookbook到Chef-Server"><a href="#3-6-上传cookbook到Chef-Server" class="headerlink" title="3.6 上传cookbook到Chef Server"></a>3.6 上传cookbook到Chef Server</h3><p><code>knife cookbook upload learn_chef_iis</code></p>
+<h2 id="4-自动部署Node节点机器"><a href="#4-自动部署Node节点机器" class="headerlink" title="4.自动部署Node节点机器"></a>4.自动部署Node节点机器</h2><h3 id="4-1-Node节点机器要求"><a href="#4-1-Node节点机器要求" class="headerlink" title="4.1 Node节点机器要求"></a>4.1 Node节点机器要求</h3><ul>
+<li>安装Chef Client组件。</li>
+<li>开放80、5985(WinRM)进站端口。</li>
+<li>开放443出站端口。</li>
+<li>workstation机器也需要开放80、443、5985出站端口。<h3 id="4-2-测试连接Node节点机器"><a href="#4-2-测试连接Node节点机器" class="headerlink" title="4.2 测试连接Node节点机器"></a>4.2 测试连接Node节点机器</h3>在workstation机器上，使用如下命令测试连接node机器：</li>
+</ul>
+<p><code>knife wsman test IP --manual-list</code></p>
+<h3 id="4-3-远程配置Node节点机器"><a href="#4-3-远程配置Node节点机器" class="headerlink" title="4.3 远程配置Node节点机器"></a>4.3 远程配置Node节点机器</h3><p>在workstation机器上，先进入工作目录：</p>
+<p><code>cd learn-chef</code></p>
+<p>再执行如下命令启动远程配置node机器：</p>
+<p><code>knife bootstrap windows winrm</code> <strong>IP</strong> <code>--winrm-user</code> <strong>user</strong> <code>--winrm-password</code> <strong>‘PASSWORD’</strong> <code>--node-name node1 --run-list &#39;recipe[learn_chef_iis]&#39;</code></p>
+<p><em>IP：</em> Node机器的IP地址</p>
+<p><em>user：</em> Node机器管理员账号</p>
+<p><em>password：</em> Node机器管理员密码</p>
+<p><em>node1:</em> 自定义节点名称</p>
+<h3 id="4-4-测试远程配置结果"><a href="#4-4-测试远程配置结果" class="headerlink" title="4.4 测试远程配置结果"></a>4.4 测试远程配置结果</h3><ol>
+<li>登陆chef manage，检查nodes情况</li>
+</ol>
+<p>或者使用命令：<code>knife node list</code> 和 <code>knife node show node1</code></p>
+<ol>
+<li>浏览器中输入测试页面访问情况</li>
+</ol>
+<p><code>http://ip/default.htm</code></p>
+<h2 id="5-更新配置并重新运行"><a href="#5-更新配置并重新运行" class="headerlink" title="5.更新配置并重新运行"></a>5.更新配置并重新运行</h2><p>在workstation上更新配置文件内容后，再重新执行：</p>
+<ol>
+<li>修改template下面的模板文件内容，如更改输出内容。</li>
+<li>上传新的cookbook到chef server：</li>
+</ol>
+<p><code>knife cookbook upload learn_chef_iis</code></p>
+<ol>
+<li>重新执行新的cookbook</li>
+</ol>
+<p><code>knife winrm</code> <strong>IP</strong> <code>chef-client --manual-list --winrm-user</code> <strong>USER</strong> <code>--winrm-password</code> <strong>‘PASSWORD’</strong> <code> </code></p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p>[1] <a href="https://learn.chef.io/manage-a-node/windows" target="_blank" rel="external">Manage a Node</a></p>
+</div><script type="text/javascript" src="/js/share.js?v=0.0.0" async></script><a data-url="http://xinligis.github.io/2016/09/08/20160909-AGS10.4.x-ArcGIS自动化部署实践之二：Chef生产环境测试/" data-id="ciu3sfy8e0007t0v810wj8fkt" class="article-share-link">分享到</a><div class="tags"><a href="/tags/ArcGIS-Chef-自动化部署/">ArcGIS,Chef,自动化部署</a></div><div class="post-nav"><a href="/2016/09/08/20160908-AGS10.4.x-ArcGIS自动化部署实践之一：Chef环境搭建与演练/" class="pre">ArcGIS自动化部署实践之一：Chef环境搭建与演练</a><a href="/2016/09/08/20160919-AGS10.4.x-ArcGIS自动化部署实践之三：Powershell命令入门/" class="next">ArcGIS自动化部署实践之三：PowerShell命令入门</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><div class="search-form"><input id="local-search-input" placeholder="Search" type="text" name="q" results="0"/><div id="local-search-result"></div></div></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/地理平台/">地理平台</a><span class="category-list-count">5</span></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最新文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2016/10/09/20161009-AGS10.4.x-ArcGIS自动化部署实践之四：基于powershell的AGS Server自动部署1/">ArcGIS自动化部署实践之四：基于PowerShell的AGS Server自动部署1</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/09/08/20160908-AGS10.4.x-ArcGIS自动化部署实践之一：Chef环境搭建与演练/">ArcGIS自动化部署实践之一：Chef环境搭建与演练</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/09/08/20160909-AGS10.4.x-ArcGIS自动化部署实践之二：Chef生产环境测试/">ArcGIS自动化部署实践之二：Chef生产环境测试</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/09/08/20160919-AGS10.4.x-ArcGIS自动化部署实践之三：Powershell命令入门/">ArcGIS自动化部署实践之三：PowerShell命令入门</a></li><li class="post-list-item"><a class="post-list-link" href="/2016/09/05/20160905-Portal10.4.x-部署常见问题处理/">Portal for ArcGIS部署常见问题处理</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="http://xinligis.github.io/" title="GitHub" target="_blank">GitHub</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">© <a href="/." rel="nofollow">辛立.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a id="rocket" href="#top" class="show"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.bootcss.com/fancybox/2.1.5/jquery.fancybox.pack.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="/css/jquery.fancybox.css?v=0.0.0"><script type="text/javascript" src="/js/search.js?v=0.0.0"></script><script>var search_path = 'search.xml';
+if (search_path.length == 0) {
+   search_path = 'search.xml';
+}
+var path = '/' + search_path;
+searchFunc(path, 'local-search-input', 'local-search-result');
+</script><script type="text/x-mathjax-config">MathJax.Hub.Config({
+  tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}
+  });
+</script><script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML" async></script><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
